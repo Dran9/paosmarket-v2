@@ -6,3 +6,5 @@ client/dist/
 *.log
 config.json
 tmp/
+bun.lock
+bun.lockb
