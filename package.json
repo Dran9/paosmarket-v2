@@ -8,7 +8,8 @@
     "dev:client": "vite --config client/vite.config.ts",
     "dev": "npm run dev:server & npm run dev:client",
     "build": "rm -rf client/dist && vite build --config client/vite.config.ts",
-    "start": "node server.js"
+    "start": "node server.js",
+    "postinstall": "npm run build"
   },
   "dependencies": {
     "@fastify/cookie": "^11.0.1",

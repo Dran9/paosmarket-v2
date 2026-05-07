@@ -1,6 +1,7 @@
 import Fastify from 'fastify';
 import fastifyStatic from '@fastify/static';
 import path from 'path';
+import fs from 'fs';
 import { fileURLToPath } from 'url';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -8,10 +9,24 @@ const __dirname = path.dirname(__filename);
 
 const app = Fastify({ logger: true });
 
-await app.register(fastifyStatic, {
-  root: path.join(__dirname, 'client', 'dist'),
-  prefix: '/',
-});
+const distDir = path.join(__dirname, 'client', 'dist');
+
+if (fs.existsSync(distDir)) {
+  await app.register(fastifyStatic, {
+    root: distDir,
+    prefix: '/',
+  });
+
+  app.setNotFoundHandler((request, reply) => {
+    if (request.url.startsWith('/api/')) {
+      reply.code(404).send({ error: 'No encontrado' });
+      return;
+    }
+    reply.sendFile('index.html');
+  });
+} else {
+  app.log.warn(`Build no encontrado en ${distDir}`);
+}
 
 app.get('/api/health', async () => ({
   ok: true,
@@ -19,14 +34,6 @@ app.get('/api/health', async () => ({
   time: new Date().toISOString(),
   node: process.version,
 }));
-
-app.setNotFoundHandler((request, reply) => {
-  if (request.url.startsWith('/api/')) {
-    reply.code(404).send({ error: 'No encontrado' });
-    return;
-  }
-  reply.sendFile('index.html');
-});
 
 const port = Number(process.env.PORT) || 3000;
 
