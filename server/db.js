@@ -36,6 +36,34 @@ export async function query(sql, params = []) {
   return rows;
 }
 
+export async function nextIdConn(conn, key, prefix, start = 1000) {
+  await conn.execute(
+    'INSERT INTO counters (`key`, value) VALUES (?, ?) ON DUPLICATE KEY UPDATE value = value + 1',
+    [key, start]
+  );
+  const [rows] = await conn.execute('SELECT value FROM counters WHERE `key` = ?', [key]);
+  return `${prefix}${rows[0].value}`;
+}
+
+export async function nextId(key, prefix, start = 1000) {
+  const conn = await getPool().getConnection();
+  try {
+    await conn.beginTransaction();
+    const id = await nextIdConn(conn, key, prefix, start);
+    await conn.commit();
+    return id;
+  } catch (err) {
+    await conn.rollback();
+    throw err;
+  } finally {
+    conn.release();
+  }
+}
+
+export function round2(n) {
+  return Math.round(Number(n) * 100) / 100;
+}
+
 const PING_TTL_MS = 5000;
 let pingCache = { ok: false, error: null, errorMsg: null, at: 0, inflight: null };
 

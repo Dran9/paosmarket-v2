@@ -6,6 +6,8 @@ import { fileURLToPath } from 'url';
 import { initDB, pingDBStatus } from './server/db.js';
 import { setupAuth } from './server/auth.js';
 import authRoutes from './server/routes/auth.js';
+import productRoutes from './server/routes/products.js';
+import transactionRoutes from './server/routes/transactions.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -29,6 +31,8 @@ app.get('/api/health', async () => {
 async function start() {
   await setupAuth(app);
   await app.register(authRoutes, { prefix: '/api/auth' });
+  await app.register(productRoutes, { prefix: '/api/products' });
+  await app.register(transactionRoutes, { prefix: '/api/transactions' });
 
   if (fs.existsSync(distDir)) {
     await app.register(fastifyStatic, { root: distDir, prefix: '/' });
