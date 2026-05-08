@@ -2,7 +2,7 @@ import { useEffect, type ReactNode } from 'react';
 import { X } from 'lucide-react';
 
 interface Props {
-  open: boolean;
+  open?: boolean;
   onClose: () => void;
   title?: string;
   children: ReactNode;
@@ -15,7 +15,7 @@ const SIZE_CLASS: Record<NonNullable<Props['size']>, string> = {
   lg: 'max-w-3xl',
 };
 
-export default function Modal({ open, onClose, title, children, size = 'md' }: Props) {
+export default function Modal({ open = true, onClose, title, children, size = 'md' }: Props) {
   useEffect(() => {
     if (!open) return;
     const handler = (e: KeyboardEvent) => {
