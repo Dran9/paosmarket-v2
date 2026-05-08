@@ -3,7 +3,7 @@ import fastifyStatic from '@fastify/static';
 import path from 'path';
 import fs from 'fs';
 import { fileURLToPath } from 'url';
-import { initDB, pingDB } from './server/db.js';
+import { initDB, pingDBStatus } from './server/db.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -12,13 +12,20 @@ const app = Fastify({ logger: true });
 const distDir = path.join(__dirname, 'client', 'dist');
 const VERSION = '2.0.0';
 
-app.get('/api/health', async () => ({
-  ok: true,
-  version: VERSION,
-  time: new Date().toISOString(),
-  node: process.version,
-  db: await pingDB(),
-}));
+app.get('/api/health', async () => {
+  const dbStatus = await pingDBStatus();
+  return {
+    ok: true,
+    version: VERSION,
+    time: new Date().toISOString(),
+    node: process.version,
+    db: dbStatus.ok,
+    dbError: dbStatus.error,
+    dbHost: process.env.DB_HOST || null,
+    dbUser: process.env.DB_USER || null,
+    dbName: process.env.DB_NAME || null,
+  };
+});
 
 async function start() {
   if (fs.existsSync(distDir)) {
