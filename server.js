@@ -21,6 +21,7 @@ app.get('/api/health', async () => {
     node: process.version,
     db: dbStatus.ok,
     dbError: dbStatus.error,
+    dbErrorMsg: dbStatus.errorMsg,
     dbHost: process.env.DB_HOST || null,
     dbUser: process.env.DB_USER || null,
     dbName: process.env.DB_NAME || null,

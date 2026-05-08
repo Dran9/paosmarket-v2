@@ -37,14 +37,18 @@ export async function query(sql, params = []) {
 }
 
 const PING_TTL_MS = 5000;
-let pingCache = { ok: false, error: null, at: 0, inflight: null };
+let pingCache = { ok: false, error: null, errorMsg: null, at: 0, inflight: null };
 
 async function probe() {
   try {
     await getPool().query('SELECT 1');
-    return { ok: true, error: null };
+    return { ok: true, error: null, errorMsg: null };
   } catch (err) {
-    return { ok: false, error: err.code || err.errno || err.message || 'UNKNOWN' };
+    return {
+      ok: false,
+      error: err.code || err.errno || 'UNKNOWN',
+      errorMsg: err.message || null,
+    };
   }
 }
 
@@ -56,11 +60,17 @@ export async function pingDB() {
 export async function pingDBStatus() {
   const now = Date.now();
   if (now - pingCache.at < PING_TTL_MS) {
-    return { ok: pingCache.ok, error: pingCache.error };
+    return { ok: pingCache.ok, error: pingCache.error, errorMsg: pingCache.errorMsg };
   }
   if (pingCache.inflight) return pingCache.inflight;
   pingCache.inflight = probe().then((res) => {
-    pingCache = { ok: res.ok, error: res.error, at: Date.now(), inflight: null };
+    pingCache = {
+      ok: res.ok,
+      error: res.error,
+      errorMsg: res.errorMsg,
+      at: Date.now(),
+      inflight: null,
+    };
     return res;
   });
   return pingCache.inflight;
