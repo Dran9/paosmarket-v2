@@ -9,7 +9,7 @@ import type { AppNotification, ViewKey } from '@/lib/types';
 import { useStore } from '@/lib/store';
 import { fmtDateTime } from '@/lib/utils';
 
-export default function BellMenu() {
+export default function BellMenu({ sidebar = false }: { sidebar?: boolean }) {
   const { data: notifications = [] } = useNotifications();
   const readOne = useReadNotification();
   const readAll = useReadAllNotifications();
@@ -38,25 +38,53 @@ export default function BellMenu() {
 
   return (
     <div className="relative" ref={ref}>
-      <button
-        onClick={() => setOpen((v) => !v)}
-        className={`relative w-10 h-10 rounded-lg flex items-center justify-center transition-colors ${
-          count > 0
-            ? 'bg-amber-50 text-amber-600 hover:bg-amber-100'
-            : 'text-slate-400 hover:bg-slate-100'
-        }`}
-        title="Avisos"
-      >
-        <Bell size={18} />
-        {count > 0 && (
-          <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center px-1">
-            {count > 99 ? '99+' : count}
-          </span>
-        )}
-      </button>
+      {sidebar ? (
+        /* Versión sidebar: fila completa similar a los nav buttons */
+        <button
+          onClick={() => setOpen((v) => !v)}
+          className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-xs font-medium transition-all relative ${
+            count > 0
+              ? 'text-amber-400 hover:text-amber-300 hover:bg-slate-800'
+              : 'text-white/60 hover:text-white hover:bg-slate-800'
+          }`}
+          title="Avisos"
+        >
+          <div className="relative flex-shrink-0">
+            <Bell size={14} />
+            {count > 0 && (
+              <span className="absolute -top-1.5 -right-1.5 min-w-[14px] h-[14px] bg-red-500 text-white text-[8px] font-bold rounded-full flex items-center justify-center px-0.5">
+                {count > 99 ? '99+' : count}
+              </span>
+            )}
+          </div>
+          <span className="truncate">Avisos</span>
+        </button>
+      ) : (
+        /* Versión header: botón icono cuadrado */
+        <button
+          onClick={() => setOpen((v) => !v)}
+          className={`relative w-10 h-10 rounded-lg flex items-center justify-center transition-colors ${
+            count > 0
+              ? 'bg-amber-50 text-amber-600 hover:bg-amber-100'
+              : 'text-slate-400 hover:bg-slate-100'
+          }`}
+          title="Avisos"
+        >
+          <Bell size={18} />
+          {count > 0 && (
+            <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center px-1">
+              {count > 99 ? '99+' : count}
+            </span>
+          )}
+        </button>
+      )}
 
       {open && (
-        <div className="absolute right-0 top-12 w-[360px] max-h-[480px] bg-white rounded-xl border-2 border-slate-200 shadow-xl z-40 overflow-hidden flex flex-col">
+        <div className={`absolute w-[360px] max-h-[480px] bg-white rounded-xl border-2 border-slate-200 shadow-xl z-40 overflow-hidden flex flex-col ${
+          sidebar
+            ? 'left-full ml-2 bottom-0'   /* abre hacia la derecha del sidebar */
+            : 'right-0 top-12'            /* abre hacia abajo desde el header  */
+        }`}>
           <div className="px-4 py-3 border-b border-slate-200 flex items-center justify-between">
             <h3 className="font-bold text-sm text-slate-800">Centro de avisos</h3>
             {persistedCount > 0 && (

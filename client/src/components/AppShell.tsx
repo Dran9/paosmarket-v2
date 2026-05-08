@@ -105,7 +105,7 @@ export default function AppShell() {
           {visibleNav.map((n) => {
             const Icon = n.icon;
             const active = activeKey === n.key;
-            return (
+            const btn = (
               <button
                 key={n.key}
                 onClick={() => setView(n.key)}
@@ -122,7 +122,19 @@ export default function AppShell() {
                 <span className="truncate">{n.label}</span>
               </button>
             );
+            // Insertar campana justo antes de Ajustes
+            if (n.key === 'settings') {
+              return (
+                <div key="bell-and-settings">
+                  <BellMenu sidebar />
+                  {btn}
+                </div>
+              );
+            }
+            return btn;
           })}
+          {/* Si el usuario no ve Ajustes (vendedora), la campana va al final */}
+          {!visibleNav.some((n) => n.key === 'settings') && <BellMenu sidebar />}
         </nav>
 
         <div className="p-3 border-t border-white/10">
@@ -151,9 +163,6 @@ export default function AppShell() {
       </aside>
 
       <div className="flex-1 flex flex-col overflow-hidden">
-        <header className="bg-white border-b border-slate-200 px-6 py-2 flex items-center justify-end">
-          <BellMenu />
-        </header>
         <main className="flex-1 overflow-y-auto p-6">
           <Suspense fallback={<ViewFallback />}>
             {VIEWS[activeKey]}

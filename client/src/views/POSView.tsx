@@ -117,7 +117,7 @@ export default function POSView() {
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Buscar producto o código de barras…"
-              className="w-full pl-12 pr-4 py-4 text-2xl font-semibold rounded-xl border-2 border-slate-200 focus:border-indigo-500 outline-none bg-white"
+              className="w-full pl-12 pr-4 py-4 text-[22px] font-semibold rounded-xl border-2 border-slate-200 focus:border-indigo-500 outline-none bg-white"
             />
           </div>
         </div>

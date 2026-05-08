@@ -31,7 +31,7 @@ export default function ProductCard({ product, onClick }: Props) {
       <div className="text-base font-bold text-center text-slate-800 mb-1.5 leading-tight line-clamp-2">
         {product.name}
       </div>
-      <div className="text-xl font-black text-center text-indigo-500 mb-1.5">
+      <div className="text-[22px] font-black text-center text-indigo-500 mb-1.5">
         {settings.currencySymbol} {product.price.toFixed(2)}
       </div>
       <div
