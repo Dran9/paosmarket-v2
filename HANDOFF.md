@@ -423,13 +423,32 @@ pos-paolitas-v2/
       bordes rounded-2xl→rounded-xl. Grid del POS pasa de
       `minmax(150px,1fr)` a `minmax(128px,1fr)` y `gap-3`→`gap-2.5` para
       aprovechar el card más chico (≈15% más productos por fila).
+- **2026-05-08 — Polish fase 6 (commit f75b607).** Validado en producción.
+    - **F2/F3/ESC atajos**: ESC cierra cualquier modal (useEffect en Modal.tsx).
+      F2 abre PaymentModal, F3 abre DeliveryModal cuando el carrito tiene items
+      y no hay otro modal activo. Los atajos se ignoran si el foco está en un
+      input/textarea/select.
+    - **Recibo mejorado**: ReceiptModal ahora muestra businessPhone, businessCity
+      y businessEmail desde settings (si están configurados). Dirección y ciudad
+      se combinan en una línea.
+    - **POST /api/products/bulk**: acepta `{items:[...]}` (hasta 2000), inserta en
+      loop, retorna `{imported, errors:[{index, reason}]}`. Registro idempotente
+      por nombre no implementado — si se importa el mismo Excel dos veces se
+      duplican (por diseño; la tienda gestiona el catálogo desde inventario).
+    - **Excel import 1 request**: InventoryView ya no hace N requests individuales.
+      Parsea el Excel localmente, filtra filas sin nombre/categoría, y llama
+      /api/products/bulk una sola vez.
+    - **Service Worker**: no implementado aún (queda como tarea futura si Daniel
+      lo pide).
+    - **useBulkImportProducts** hook en queries.ts, patrón igual a los otros hooks
+      de producto (fetch directo + JWT de localStorage).
 
 ---
 
 ## Prompt para la siguiente instancia
 
 ```
-Soy Daniel. POS Paolita's Market v2, todas las fases hasta la 6.4 están cerradas.
+Soy Daniel. POS Paolita's Market v2, todas las fases hasta la 6.4 están cerradas + polish (atajos, recibo, bulk import).
 
 Proyecto local: /Users/dran/Documents/Codex openai/POS PAO/pos-paolitas-v2/
 GitHub: https://github.com/Dran9/paosmarket-v2 (branch main)
@@ -443,9 +462,10 @@ esperar OK (modo autónomo, igual que las instancias anteriores).
 
 Funcional end-to-end y desplegado:
 - POSView con búsqueda, scanner, carrito, PaymentModal (Efectivo/QR/Tarjeta/Mixto),
-  ReceiptModal imprimible, toggle delivery → DeliveryModal compacto.
+  ReceiptModal imprimible (muestra phone/city/email desde settings), toggle delivery → DeliveryModal compacto.
+  Atajos F2=cobrar, F3=delivery, ESC=cerrar modal.
 - SalesView, OrdersView (edición inline + status workflow + asignación de chofer),
-  InventoryView (CRUD + import/export Excel + ajuste stock),
+  InventoryView (CRUD + import/export Excel bulk 1-request + ajuste stock),
   DashboardView (6 KPIs + 2 donuts + bar top10 + 2 tablas),
   AccountingView (resumen IVA + P&L + CRUD gastos),
   SettingsView (4 tabs: Negocio, General, Empleados, Choferes con WhatsApp ID).
@@ -482,18 +502,14 @@ Funcional end-to-end y desplegado:
 
 (elegir según lo que pida Daniel, NO inventar trabajo)
 
-A. **F2/F3/ESC atajos de teclado** en POSView (cobrar/delivery/cerrar modal).
-   Mencionado como deseable en PLAN.md sección Fase 6 polish.
+A. ~~F2/F3/ESC atajos~~ ✅ implementado (commit f75b607).
 
-B. **Recibo imprimible mejorado** — el ReceiptModal ya imprime con CSS
-   @media print, pero podría agregarse logo, NIT, dirección desde settings.
+B. ~~Recibo mejorado~~ ✅ phone/city/email desde settings (commit f75b607).
 
 C. **Service Worker** para cache de JS/CSS/HTML offline (no de API). Mencionado
-   en PLAN.md Fase 6 polish.
+   en PLAN.md Fase 6 polish. Aún pendiente.
 
-D. **Bulk import endpoint** — actualmente Excel import dispara N requests POST
-   /api/products. Si Paola importa 500 filas se hacen 500 requests. Podría
-   agregarse POST /api/products/bulk que acepte array.
+D. ~~Bulk import~~ ✅ POST /api/products/bulk + InventoryView usa 1 request (commit f75b607).
 
 E. **Refinamientos UX que Daniel descubra al usar la app real** — Daniel
    prueba en navegador y suele pedir compactar, agrandar, reordenar cosas.
