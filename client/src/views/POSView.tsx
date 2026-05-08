@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   Search,
   ShoppingCart,
@@ -85,6 +85,25 @@ export default function POSView() {
     else setShowPayment(true);
   };
 
+  const anyModalOpen = showPayment || showDelivery || !!showReceipt || !!showOrderConfirm;
+
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (anyModalOpen) return;
+      const tag = (document.activeElement as HTMLElement)?.tagName;
+      if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
+      if (e.key === 'F2') {
+        e.preventDefault();
+        if (cart.length > 0) setShowPayment(true);
+      } else if (e.key === 'F3') {
+        e.preventDefault();
+        if (cart.length > 0) setShowDelivery(true);
+      }
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, [anyModalOpen, cart.length]);
+
   return (
     <div className="grid grid-cols-1 lg:grid-cols-[1fr_380px] gap-5 h-full">
       <div className="flex flex-col overflow-hidden">
@@ -168,6 +187,9 @@ export default function POSView() {
           businessName={settings.businessName}
           businessTagline={settings.businessTagline}
           businessAddress={settings.businessAddress}
+          businessCity={settings.businessCity}
+          businessPhone={settings.businessPhone}
+          businessEmail={settings.businessEmail}
           businessNIT={settings.businessNIT}
           taxRate={settings.taxRate}
           onClose={() => setShowReceipt(null)}
@@ -770,6 +792,9 @@ function ReceiptModal({
   businessName,
   businessTagline,
   businessAddress,
+  businessCity,
+  businessPhone,
+  businessEmail,
   businessNIT,
   taxRate,
   onClose,
@@ -778,6 +803,9 @@ function ReceiptModal({
   businessName: string;
   businessTagline: string;
   businessAddress: string;
+  businessCity: string;
+  businessPhone: string;
+  businessEmail: string;
   businessNIT: string;
   taxRate: number;
   onClose: () => void;
@@ -790,8 +818,16 @@ function ReceiptModal({
           {businessTagline && (
             <div className="font-sans text-[10px] text-slate-500">{businessTagline}</div>
           )}
-          {businessAddress && (
-            <div className="font-sans text-[10px] text-slate-500">{businessAddress}</div>
+          {(businessAddress || businessCity) && (
+            <div className="font-sans text-[10px] text-slate-500">
+              {[businessAddress, businessCity].filter(Boolean).join(', ')}
+            </div>
+          )}
+          {businessPhone && (
+            <div className="font-sans text-[10px] text-slate-500">Tel: {businessPhone}</div>
+          )}
+          {businessEmail && (
+            <div className="font-sans text-[10px] text-slate-500">{businessEmail}</div>
           )}
           {businessNIT && (
             <div className="font-sans text-[10px] text-slate-500">NIT: {businessNIT}</div>

@@ -151,6 +151,75 @@ export default async function productRoutes(app) {
   );
 
   app.post(
+    '/bulk',
+    {
+      preHandler: [app.requireOwner],
+      schema: {
+        body: {
+          type: 'object',
+          required: ['items'],
+          properties: {
+            items: {
+              type: 'array',
+              minItems: 1,
+              maxItems: 2000,
+              items: {
+                type: 'object',
+                properties: {
+                  name:     { type: 'string' },
+                  category: { type: 'string' },
+                  barcode:  { type: 'string' },
+                  price:    { type: 'number' },
+                  cost:     { type: 'number' },
+                  stock:    { type: 'number' },
+                  unit:     { type: 'string' },
+                },
+              },
+            },
+          },
+          additionalProperties: false,
+        },
+      },
+    },
+    async (req, reply) => {
+      const { items } = req.body;
+      let imported = 0;
+      const errors = [];
+
+      for (let i = 0; i < items.length; i++) {
+        const {
+          name,
+          category,
+          barcode = '',
+          price = 0,
+          cost = 0,
+          stock = 0,
+          unit = 'pza',
+        } = items[i];
+
+        const n = String(name ?? '').trim();
+        const c = String(category ?? '').trim();
+        if (!n || !c) {
+          errors.push({ index: i, reason: 'Falta nombre o categoría' });
+          continue;
+        }
+
+        try {
+          await query(
+            'INSERT INTO products (name, category, barcode, price, cost, stock, unit) VALUES (?, ?, ?, ?, ?, ?, ?)',
+            [n, c, String(barcode).trim(), Number(price), Number(cost), Number(stock), String(unit).trim()]
+          );
+          imported++;
+        } catch (e) {
+          errors.push({ index: i, reason: e.message });
+        }
+      }
+
+      return reply.code(201).send({ imported, errors });
+    }
+  );
+
+  app.post(
     '/:id/stock',
     { schema: stockSchema, preHandler: [app.requireOwner] },
     async (req, reply) => {

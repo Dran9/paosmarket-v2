@@ -335,6 +335,28 @@ export const useDeleteProduct = () => {
   });
 };
 
+export const useBulkImportProducts = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (items: Array<{
+      name: string; category: string; barcode?: string;
+      price?: number; cost?: number; stock?: number; unit?: string;
+    }>) =>
+      fetch('/api/products/bulk', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(localStorage.getItem('pos-jwt') ? { Authorization: `Bearer ${localStorage.getItem('pos-jwt')}` } : {}),
+        },
+        body: JSON.stringify({ items }),
+      }).then(async (r) => {
+        if (!r.ok) { const e = await r.json(); throw new Error(e.error || 'Error'); }
+        return r.json() as Promise<{ imported: number; errors: Array<{ index: number; reason: string }> }>;
+      }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['products'] }),
+  });
+};
+
 export const useStockAdjust = () => {
   const qc = useQueryClient();
   return useMutation({

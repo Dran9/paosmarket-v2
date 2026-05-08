@@ -2,7 +2,7 @@ import { useState, useRef, useMemo } from 'react';
 import { useForm } from 'react-hook-form';
 import toast from 'react-hot-toast';
 import { Plus, Pencil, Trash2, PackagePlus, Download, Upload, X } from 'lucide-react';
-import { useProducts, useCreateProduct, useUpdateProduct, useDeleteProduct, useStockAdjust } from '@/lib/queries';
+import { useProducts, useCreateProduct, useUpdateProduct, useDeleteProduct, useStockAdjust, useBulkImportProducts } from '@/lib/queries';
 import { useStore } from '@/lib/store';
 import { fmt } from '@/lib/utils';
 import CategoryIcon from '@/components/CategoryIcon';
@@ -163,6 +163,7 @@ export default function InventoryView() {
   const { data: products = [], isLoading } = useProducts();
   const deleteProduct = useDeleteProduct();
   const createProduct = useCreateProduct();
+  const bulkImport = useBulkImportProducts();
   const { settings } = useStore();
 
   const [search, setSearch] = useState('');
@@ -224,41 +225,32 @@ export default function InventoryView() {
       const ws = wb.Sheets[wb.SheetNames[0]];
       const rows: any[] = XLSX.utils.sheet_to_json(ws);
 
-      let imported = 0;
-      const errors: string[] = [];
+      const items = rows
+        .map((r) => ({
+          name: String(r['Nombre'] || r['name'] || '').trim(),
+          category: String(r['Categoría'] || r['Categoria'] || r['category'] || '').trim(),
+          barcode: String(r['Código Barras'] || r['barcode'] || '').trim(),
+          price: Number(r['Precio'] || r['price'] || 0),
+          cost: Number(r['Costo'] || r['cost'] || 0),
+          stock: Number(r['Stock'] || r['stock'] || 0),
+          unit: String(r['Unidad'] || r['unit'] || 'pza').trim(),
+        }))
+        .filter((r) => r.name && r.category);
 
-      for (let i = 0; i < rows.length; i++) {
-        const r = rows[i];
-        const name = String(r['Nombre'] || r['name'] || '').trim();
-        const category = String(r['Categoría'] || r['Categoria'] || r['category'] || '').trim();
-        if (!name || !category) {
-          if (name || category) errors.push(`Fila ${i + 2}: falta nombre o categoría`);
-          continue;
-        }
-        try {
-          await createProduct.mutateAsync({
-            name,
-            category,
-            barcode: String(r['Código Barras'] || r['barcode'] || '').trim(),
-            price: Number(r['Precio'] || r['price'] || 0),
-            cost: Number(r['Costo'] || r['cost'] || 0),
-            stock: Number(r['Stock'] || r['stock'] || 0),
-            unit: String(r['Unidad'] || r['unit'] || 'pza').trim(),
-          });
-          imported++;
-        } catch {
-          errors.push(`Fila ${i + 2}: "${name}" — error al crear`);
-        }
+      if (items.length === 0) {
+        toast.error('No se encontraron filas válidas (requieren Nombre y Categoría)');
+        return;
       }
 
-      const msg = `${imported} importados${errors.length ? `, ${errors.length} errores` : ''}`;
-      if (errors.length) {
-        toast.error(`${msg}\n${errors.slice(0, 3).join('\n')}`);
+      const result = await bulkImport.mutateAsync(items);
+      const msg = `${result.imported} importados${result.errors.length ? `, ${result.errors.length} errores` : ''}`;
+      if (result.errors.length) {
+        toast.error(`${msg}\n${result.errors.slice(0, 3).map((e) => `Fila ${e.index + 2}: ${e.reason}`).join('\n')}`);
       } else {
         toast.success(msg);
       }
     } catch {
-      toast.error('Error al leer el archivo Excel');
+      toast.error('Error al leer o importar el archivo Excel');
     } finally {
       setImporting(false);
     }
