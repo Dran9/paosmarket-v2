@@ -471,7 +471,8 @@ Funcional end-to-end y desplegado:
   SettingsView (4 tabs: Negocio, General, Empleados, Choferes con WhatsApp ID).
 - Backend completo (auth, products, transactions, orders, drivers CRUD, expenses,
   users, settings PUT, dashboard, notifications, whatsapp util).
-- Code splitting activo: bundle inicial 108KB (gzip 29KB).
+- Code splitting activo: bundle inicial 109KB (gzip 29KB).
+- Service Worker activo: cache offline de assets JS/CSS/HTML; /api/ siempre va a red.
 - Migraciones 001+002+003 corridas en prod.
 
 # QUÉ NO HACER
@@ -506,8 +507,7 @@ A. ~~F2/F3/ESC atajos~~ ✅ implementado (commit f75b607).
 
 B. ~~Recibo mejorado~~ ✅ phone/city/email desde settings (commit f75b607).
 
-C. **Service Worker** para cache de JS/CSS/HTML offline (no de API). Mencionado
-   en PLAN.md Fase 6 polish. Aún pendiente.
+C. ~~Service Worker~~ ✅ cache offline JS/CSS/HTML (commit 61e719f).
 
 D. ~~Bulk import~~ ✅ POST /api/products/bulk + InventoryView usa 1 request (commit f75b607).
 
