@@ -24,6 +24,7 @@ de `PLAN.md`. No reescribas este archivo salvo en la sección final
 | 5 (POS) | POSView funcional, carrito, PaymentModal, ReceiptModal print | `a8064de` |
 | 5.1 backend | orders + drivers + notifications persistentes + Telegram util + migración 002 | `8e2431a` |
 | 5.2 frontend | DeliveryModal en POS, OrdersView editable, BellMenu, "En tienda" | `c527719` |
+| 6 | Backend completo + 4 vistas owner-only (Inventory/Dashboard/Accounting/Settings) | `07c5bfa` |
 
 ---
 
@@ -285,6 +286,40 @@ pos-paolitas-v2/
 
 ---
 
+## Endpoints nuevos en Fase 6
+
+### Settings (`server/routes/settings.js`)
+- `PUT /api/settings` (requireOwner) — body con subset de claves de `ALLOWED_KEYS`.
+  Claves numéricas (taxRate, lowStockThreshold) se guardan como string; el GET ya castea.
+
+### Users (`server/routes/users.js`) — owner-only excepto PUT self
+- `GET /api/users` — todos active=1, sin password_hash.
+- `POST /api/users` body `{id, name, password, role, avatar?, color?, firstName?}`.
+  bcrypt + can_dashboard=1 si role=owner.
+- `PUT /api/users/:id` parcial. Solo owner puede cambiar role. Owner o self puede editar resto.
+- `DELETE /api/users/:id` (owner) soft delete. Guard: no eliminar último owner ni a uno mismo.
+
+### Expenses (`server/routes/expenses.js`) — requireOwner
+- `GET /api/expenses` ?from=&to= (default último mes).
+- `POST /api/expenses` `{date, category, description, amount, notification_id?}`.
+  ID `EXP-NNNN` desde counter `expense` (arranca en 1000).
+  Si viene `notification_id`, marca esa notif como read (para transport_loss).
+- `PUT /api/expenses/:id` parcial.
+- `DELETE /api/expenses/:id` físico.
+- `GET /api/expenses/categories` → lista estática de categorías sugeridas.
+
+### Dashboard (`server/routes/dashboard.js`) — requireOwner
+- `GET /api/dashboard` ?from=&to= (default último mes).
+  Retorna: `{totalRevenue, totalCOGS, grossProfit, totalTax, totalExpenses, netProfit,
+             txCount, byUser[], byMethod[], bySaleType[], topProducts[], lowStock[]}`.
+  `netProfit = totalRevenue - totalCOGS - totalTax - totalExpenses`.
+
+### Orders actualizado
+- `devuelto + transport_settled='tienda'`: crea notif `transport_loss` severity='warning'
+  con instrucción de registrar el gasto manualmente en Contabilidad.
+
+---
+
 ## Pendientes y notas (la siguiente instancia escribe acá si necesita)
 
 <!-- Si tomas una decisión no obvia o dejas algo a medias, anótalo
@@ -326,17 +361,44 @@ pos-paolitas-v2/
   configuró TELEGRAM_BOT_TOKEN ni TELEGRAM_ADMIN_CHAT_ID — la notif de
   problema queda solo en la campana hasta que se setee. Pasos para
   configurar arriba en el bloque "Util Telegram".
-- **Pendiente — Fase 6 backend** (`Fase 2.5` original):
-    - `PUT /api/settings` para editar businessName y compañía
-    - `/api/users` CRUD (owner only)
-    - `/api/expenses` CRUD para AccountingView
-    - `/api/dashboard` resumen para DashboardView
-- **Pendiente — Fase 6 frontend**: SettingsView, InventoryView (CRUD de
-  productos + import Excel), DashboardView (charts), AccountingView
-  (gastos + IVA + ganancia neta).
-- **Decisión pendiente — costo de transporte cuando devuelto y "tienda
-  paga"**: hoy se guarda solo el flag `transport_settled='tienda'` en la
-  tabla orders. Cuando se implemente `/api/expenses`, hay que crear
-  automáticamente un expense category='transporte_devolución' con monto
-  igual a `order.transport_cost` cada vez que un pedido pase a `devuelto`
-  con settled='tienda'. Mientras tanto, queda como flag para no perder data.
+- **2026-05-08 — Fase 6 cerrada.** Backend completo: PUT settings, CRUD users/expenses,
+  GET dashboard. Frontend: InventoryView (tabla + modal CRUD + ajuste stock + Excel
+  import/export), DashboardView (6 KPIs + donut método/tipo + bar top-10 + byUser + lowStock),
+  AccountingView (IVA neto + P&L + CRUD gastos), SettingsView (3 tabs).
+  AppShell reemplaza todos los Placeholder por las vistas reales.
+- **Decisión — transport_loss**: cuando un pedido pasa a devuelto con transport_settled='tienda'
+  y tiene transport_cost>0, se crea una notif persistente type='transport_loss' severity='warning'.
+  La admin registra el gasto manualmente en AccountingView. POST /api/expenses acepta
+  `notification_id` opcional; si viene, marca esa notif como read.
+- **Pendiente opcional — Fase 6.3 WhatsApp Business**: NO arrancado (requiere confirmación
+  Daniel). Pendiente: migración 003 con `drivers.whatsapp_id`, util `notifyDriver`,
+  llamada async desde POST/PUT orders cuando cambia driver_id.
+- **Pendiente cosmético**: los chunks de build superan 500KB (xlsx + chart.js pesados).
+  Si el rendimiento en Hostinger es un problema, considerar lazy imports o code-splitting
+  manual en vite.config.ts con `build.rollupOptions.output.manualChunks`.
+
+---
+
+## Prompt para la siguiente instancia
+
+```
+Soy Daniel. El POS Paolita's Market v2 tiene todas las fases cerradas hasta la 6.
+Proyecto: /Users/dran/Documents/Codex openai/POS PAO/pos-paolitas-v2/
+GitHub: https://github.com/Dran9/paosmarket-v2 (branch main)
+Producción: https://mediumaquamarine-curlew-407592.hostingersite.com
+
+Lee PLAN.md + HANDOFF.md antes de cualquier tarea.
+
+Estado actual (commit 07c5bfa):
+- Todas las vistas implementadas: POS, Ventas, Pedidos, Dashboard, Contabilidad, Inventario, Ajustes.
+- Backend completo con todos los endpoints documentados en HANDOFF.md.
+- Build limpio, sin errores TypeScript.
+
+Tareas pendientes identificadas:
+1. [OPCIONAL] Fase 6.3 WhatsApp Business — SOLO si Daniel confirma.
+   Ver sección "Drivers en stand-by" en HANDOFF.md.
+2. [COSMÉTICO] Code splitting para reducir chunk de 540KB.
+   Lazy import de xlsx y chart.js solo cuando se necesitan.
+3. [VALIDACIÓN] Verificar criterios de aceptación en producción con login real.
+```
+
