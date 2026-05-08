@@ -15,8 +15,6 @@ import {
   Receipt as ReceiptIcon,
   Printer,
   Loader2,
-  User as UserIcon,
-  Phone,
   Coins,
   ReceiptText,
 } from 'lucide-react';
@@ -25,7 +23,6 @@ import {
   useProducts,
   useCreateTransaction,
   useCreateOrder,
-  useDrivers,
 } from '@/lib/queries';
 import { useStore } from '@/lib/store';
 import { fmt, round2, calcTax, fmtDateTime } from '@/lib/utils';
@@ -564,7 +561,6 @@ function DeliveryModal({
   onClose: () => void;
   onSuccess: (order: Order) => void;
 }) {
-  const { data: drivers = [] } = useDrivers();
   const create = useCreateOrder();
 
   const [name, setName] = useState('');
@@ -574,7 +570,6 @@ function DeliveryModal({
   const [notes, setNotes] = useState('');
   const [transportType, setTransportType] = useState<TransportType>('incluido');
   const [transportCost, setTransportCost] = useState(15);
-  const [driverId, setDriverId] = useState<string | null>(null);
   const [error, setError] = useState('');
 
   const finalTotal =
@@ -597,7 +592,7 @@ function DeliveryModal({
         notes: notes.trim() || null,
         transport_type: transportType,
         transport_cost: transportCost,
-        driver_id: driverId,
+        driver_id: null,
       });
       toast.success(`Pedido ${order.id} creado`);
       onSuccess(order);
@@ -607,131 +602,96 @@ function DeliveryModal({
   };
 
   const QUICK_TRANSPORT = [10, 15, 20, 30];
+  const inputCls =
+    'w-full px-2.5 py-1.5 text-sm border-2 border-slate-200 rounded-lg focus:border-indigo-500 outline-none';
 
   return (
-    <Modal open onClose={onClose} title="Pedido con entrega" size="lg">
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-5">
-        <div className="bg-slate-50 rounded-lg p-4 text-center">
-          <div className="text-[11px] text-slate-500 uppercase font-semibold">Productos + IVA</div>
-          <div className="text-2xl font-extrabold text-slate-700">{fmt(productsTotal)}</div>
-          <div className="text-[10px] text-slate-400 mt-0.5">
-            Subtotal {fmt(subtotal)} · IVA {fmt(tax)}
-          </div>
+    <Modal open onClose={onClose} title="Pedido con entrega" size="md">
+      {/* Totales en una sola línea compacta */}
+      <div className="flex items-center justify-between bg-indigo-50 border-2 border-indigo-100 rounded-lg px-3 py-2 mb-3">
+        <div>
+          <div className="text-[10px] text-indigo-500 uppercase font-semibold tracking-wide">Total a cobrar</div>
+          <div className="text-2xl font-extrabold text-indigo-600 leading-tight">{fmt(finalTotal)}</div>
         </div>
-        <div className="bg-indigo-50 rounded-lg p-4 text-center border-2 border-indigo-100">
-          <div className="text-[11px] text-indigo-500 uppercase font-semibold">Total a cobrar</div>
-          <div className="text-3xl font-extrabold text-indigo-600">{fmt(finalTotal)}</div>
-          <div className="text-[10px] text-indigo-400 mt-0.5">
+        <div className="text-right text-[10px] text-slate-500 leading-tight">
+          <div>Productos+IVA: <strong>{fmt(productsTotal)}</strong></div>
+          <div>
             {transportType === 'incluido'
-              ? `Incluye transporte ${fmt(transportCost)}`
-              : `+ ${fmt(transportCost)} al chofer en entrega`}
+              ? `Transporte: ${fmt(transportCost)}`
+              : `+ ${fmt(transportCost)} al chofer`}
           </div>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-3">
-        <FormField label="Nombre del cliente" required>
-          <input
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            placeholder="Doña Marta"
-            autoFocus
-            className="w-full px-3 py-2.5 border-2 border-slate-200 rounded-lg focus:border-indigo-500 outline-none"
-          />
-        </FormField>
-        <FormField label="Teléfono">
-          <input
-            value={phone}
-            onChange={(e) => setPhone(e.target.value)}
-            placeholder="591…"
-            className="w-full px-3 py-2.5 border-2 border-slate-200 rounded-lg focus:border-indigo-500 outline-none"
-          />
-        </FormField>
+      <div className="grid grid-cols-2 gap-2 mb-2">
+        <CompactField label="Cliente" required>
+          <input value={name} onChange={(e) => setName(e.target.value)}
+            placeholder="Doña Marta" autoFocus className={inputCls} />
+        </CompactField>
+        <CompactField label="Teléfono">
+          <input value={phone} onChange={(e) => setPhone(e.target.value)}
+            placeholder="591…" className={inputCls} />
+        </CompactField>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-[1fr_2fr] gap-3 mb-3">
-        <FormField label="Zona">
-          <input
-            value={zone}
-            onChange={(e) => setZone(e.target.value)}
-            placeholder="Zona Norte"
-            className="w-full px-3 py-2.5 border-2 border-slate-200 rounded-lg focus:border-indigo-500 outline-none"
-          />
-        </FormField>
-        <FormField label="Dirección" required>
-          <input
-            value={addr}
-            onChange={(e) => setAddr(e.target.value)}
-            placeholder="Calle, número, referencia"
-            className="w-full px-3 py-2.5 border-2 border-slate-200 rounded-lg focus:border-indigo-500 outline-none"
-          />
-        </FormField>
+      <div className="grid grid-cols-[1fr_2fr] gap-2 mb-2">
+        <CompactField label="Zona">
+          <input value={zone} onChange={(e) => setZone(e.target.value)}
+            placeholder="Zona Norte" className={inputCls} />
+        </CompactField>
+        <CompactField label="Dirección" required>
+          <input value={addr} onChange={(e) => setAddr(e.target.value)}
+            placeholder="Calle, número, referencia" className={inputCls} />
+        </CompactField>
       </div>
 
-      <FormField label="Notas (opcional)">
-        <textarea
-          value={notes}
-          onChange={(e) => setNotes(e.target.value)}
-          placeholder="Tocar timbre 2 veces, casa rosada, etc."
-          rows={2}
-          className="w-full px-3 py-2 border-2 border-slate-200 rounded-lg focus:border-indigo-500 outline-none resize-none"
-        />
-      </FormField>
+      <CompactField label="Notas">
+        <input value={notes} onChange={(e) => setNotes(e.target.value)}
+          placeholder="Tocar timbre 2 veces…" className={inputCls} />
+      </CompactField>
 
-      <label className="block text-[11px] font-semibold text-slate-500 uppercase tracking-wider mb-2 mt-4">
-        Transporte
-      </label>
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-2 mb-3">
-        {(
-          [
-            {
-              k: 'incluido' as TransportType,
-              Icon: ReceiptText,
-              t: 'Incluir transporte',
-              d: 'Se suma al total — Paola cobra todo',
-            },
-            {
-              k: 'pago_entrega' as TransportType,
-              Icon: Coins,
-              t: 'Pago en entrega',
-              d: 'El cliente le paga al chofer',
-            },
-          ]
-        ).map((o) => (
-          <button
-            key={o.k}
-            type="button"
-            onClick={() => setTransportType(o.k)}
-            className={`flex items-center gap-3 p-3 border-2 rounded-lg text-left transition-all ${
-              transportType === o.k
-                ? 'border-indigo-500 bg-indigo-50'
-                : 'border-slate-200 hover:border-indigo-300'
-            }`}
-          >
-            <o.Icon size={20} className="text-indigo-500 flex-shrink-0" />
-            <div>
-              <div className="font-bold text-sm text-slate-800">{o.t}</div>
-              <div className="text-[11px] text-slate-500">{o.d}</div>
-            </div>
-          </button>
-        ))}
-      </div>
+      <div className="mt-3 mb-2">
+        <div className="text-[10px] font-semibold text-slate-500 uppercase tracking-wide mb-1">
+          Transporte
+        </div>
+        <div className="grid grid-cols-2 gap-2 mb-2">
+          {(
+            [
+              { k: 'incluido' as TransportType, Icon: ReceiptText, t: 'Incluir', d: 'Paola cobra todo' },
+              { k: 'pago_entrega' as TransportType, Icon: Coins, t: 'Pago en entrega', d: 'Cliente paga chofer' },
+            ]
+          ).map((o) => (
+            <button
+              key={o.k}
+              type="button"
+              onClick={() => setTransportType(o.k)}
+              className={`flex items-center gap-2 px-2.5 py-1.5 border-2 rounded-lg text-left transition-all ${
+                transportType === o.k ? 'border-indigo-500 bg-indigo-50' : 'border-slate-200 hover:border-indigo-300'
+              }`}
+            >
+              <o.Icon size={16} className="text-indigo-500 flex-shrink-0" />
+              <div className="leading-tight">
+                <div className="font-bold text-xs text-slate-800">{o.t}</div>
+                <div className="text-[10px] text-slate-500">{o.d}</div>
+              </div>
+            </button>
+          ))}
+        </div>
 
-      <FormField label="Costo del transporte (Bs)">
-        <div className="flex gap-2 items-center">
+        <div className="flex gap-1.5 items-center">
           <input
             type="number"
             min={0}
             value={transportCost}
             onChange={(e) => setTransportCost(Math.max(0, parseFloat(e.target.value) || 0))}
-            className="w-32 px-3 py-2.5 border-2 border-slate-200 rounded-lg focus:border-indigo-500 outline-none"
+            className="w-20 px-2 py-1.5 text-sm border-2 border-slate-200 rounded-lg focus:border-indigo-500 outline-none"
           />
           {QUICK_TRANSPORT.map((v) => (
             <button
               key={v}
               type="button"
               onClick={() => setTransportCost(v)}
-              className={`px-3 py-1.5 text-xs font-semibold border rounded-lg ${
+              className={`px-2.5 py-1 text-xs font-semibold border rounded-lg ${
                 transportCost === v
                   ? 'bg-indigo-500 text-white border-indigo-500'
                   : 'bg-white border-slate-200 text-slate-600 hover:bg-indigo-50'
@@ -741,75 +701,47 @@ function DeliveryModal({
             </button>
           ))}
         </div>
-      </FormField>
-
-      <label className="block text-[11px] font-semibold text-slate-500 uppercase tracking-wider mb-2 mt-2">
-        Chofer (opcional)
-      </label>
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-2 mb-2">
-        <button
-          type="button"
-          onClick={() => setDriverId(null)}
-          className={`flex items-center gap-3 p-3 border-2 rounded-lg text-left transition-all ${
-            driverId === null
-              ? 'border-indigo-500 bg-indigo-50'
-              : 'border-slate-200 hover:border-indigo-300'
-          }`}
-        >
-          <div className="w-9 h-9 rounded-full bg-slate-100 text-slate-400 flex items-center justify-center">
-            <UserIcon size={16} />
-          </div>
-          <div className="text-sm font-semibold text-slate-700">Sin asignar</div>
-        </button>
-        {drivers.map((d) => (
-          <button
-            key={d.id}
-            type="button"
-            onClick={() => setDriverId(d.id)}
-            className={`flex items-center gap-3 p-3 border-2 rounded-lg text-left transition-all ${
-              driverId === d.id
-                ? 'border-indigo-500 bg-indigo-50'
-                : 'border-slate-200 hover:border-indigo-300'
-            }`}
-          >
-            <div className="w-9 h-9 rounded-full bg-indigo-100 text-indigo-500 flex items-center justify-center">
-              <UserIcon size={16} />
-            </div>
-            <div className="flex-1">
-              <div className="font-bold text-sm text-slate-800">{d.name}</div>
-              <div className="text-[11px] text-slate-500">{d.phone}</div>
-            </div>
-            <Phone size={14} className="text-emerald-500" />
-          </button>
-        ))}
       </div>
-      <p className="text-[10px] text-slate-400 mb-1">
-        Cuando se conecte WhatsApp Business + Coexistence, al elegir un chofer se le mandará automáticamente el aviso de recogida.
-      </p>
 
-      {error && <p className="text-red-500 text-sm text-center mt-3">{error}</p>}
+      {error && <p className="text-red-500 text-xs text-center mt-2">{error}</p>}
 
-      <div className="flex justify-end gap-2 mt-5">
+      <div className="flex justify-end gap-2 mt-4">
         <button
           onClick={onClose}
-          className="px-5 py-2.5 text-sm font-semibold border border-slate-200 rounded-lg hover:bg-slate-50 text-slate-600"
+          className="px-4 py-2 text-sm font-semibold border border-slate-200 rounded-lg hover:bg-slate-50 text-slate-600"
         >
           Cancelar
         </button>
         <button
           onClick={handleConfirm}
           disabled={!valid || create.isPending}
-          className="flex items-center gap-1.5 px-6 py-2.5 text-sm font-bold bg-emerald-500 hover:bg-emerald-600 disabled:opacity-50 text-white rounded-lg"
+          className="flex items-center gap-1.5 px-5 py-2 text-sm font-bold bg-emerald-500 hover:bg-emerald-600 disabled:opacity-50 text-white rounded-lg"
         >
-          {create.isPending ? (
-            <Loader2 size={14} className="animate-spin" />
-          ) : (
-            <Check size={14} />
-          )}
-          {create.isPending ? 'Creando…' : 'Confirmar pedido'}
+          {create.isPending ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} />}
+          {create.isPending ? 'Creando…' : 'Confirmar'}
         </button>
       </div>
     </Modal>
+  );
+}
+
+function CompactField({
+  label,
+  required,
+  children,
+}: {
+  label: string;
+  required?: boolean;
+  children: React.ReactNode;
+}) {
+  return (
+    <div>
+      <label className="block text-[10px] font-semibold text-slate-500 uppercase tracking-wide mb-0.5">
+        {label}
+        {required && <span className="text-red-500 ml-0.5">*</span>}
+      </label>
+      {children}
+    </div>
   );
 }
 
