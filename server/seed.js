@@ -20,8 +20,10 @@ const SETTINGS_DEFAULTS = [
 ];
 
 const DRIVERS = [
-  ['D01', 'Carlos Mamani', '70011223', 'ABC-123'],
-  ['D02', 'Juan Quispe', '70044556', 'XYZ-789'],
+  ['D01', 'Jonhy Mamani', '59178001001', ''],
+  ['D02', 'Gerson Colque', '59178001002', ''],
+  ['D03', 'Rolando Quispe', '59178001003', ''],
+  ['D04', 'Felix Callisaya', '59178001004', ''],
 ];
 
 const PRODUCTS = [
@@ -52,7 +54,12 @@ export async function runSeed(pool, log = console) {
 
   for (const [id, name, phone, plate] of DRIVERS) {
     await pool.execute(
-      'INSERT IGNORE INTO drivers (id, name, phone, plate) VALUES (?, ?, ?, ?)',
+      `INSERT INTO drivers (id, name, phone, plate)
+         VALUES (?, ?, ?, ?)
+       ON DUPLICATE KEY UPDATE
+         name = VALUES(name),
+         phone = VALUES(phone),
+         plate = VALUES(plate)`,
       [id, name, phone, plate]
     );
   }

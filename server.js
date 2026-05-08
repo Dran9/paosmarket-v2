@@ -9,6 +9,9 @@ import authRoutes from './server/routes/auth.js';
 import productRoutes from './server/routes/products.js';
 import transactionRoutes from './server/routes/transactions.js';
 import settingsRoutes from './server/routes/settings.js';
+import driverRoutes from './server/routes/drivers.js';
+import orderRoutes from './server/routes/orders.js';
+import notificationRoutes from './server/routes/notifications.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -35,6 +38,9 @@ async function start() {
   await app.register(productRoutes, { prefix: '/api/products' });
   await app.register(transactionRoutes, { prefix: '/api/transactions' });
   await app.register(settingsRoutes, { prefix: '/api/settings' });
+  await app.register(driverRoutes, { prefix: '/api/drivers' });
+  await app.register(orderRoutes, { prefix: '/api/orders' });
+  await app.register(notificationRoutes, { prefix: '/api/notifications' });
 
   if (fs.existsSync(distDir)) {
     await app.register(fastifyStatic, { root: distDir, prefix: '/' });
