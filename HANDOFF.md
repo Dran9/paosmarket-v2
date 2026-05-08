@@ -18,6 +18,9 @@ de `PLAN.md`. No reescribas este archivo salvo en la sección final
 | 2.1.cierre | Removidos campos de diagnóstico del health | `8c77081` |
 | 2.2 | Auth JWT + cookie httpOnly + login/me/logout | `656a18c` |
 | 2.3 | Productos CRUD + transacciones atómicas + /sales | `ef6fdcd` |
+| 2.4-lite | GET /api/auth/users + GET /api/settings públicos | `15b2761` |
+| 3 | Frontend base: SPA, login, AppShell, lib, vistas placeholder | `4e078ed` |
+| 4 | SalesView completa con KPIs, filtros y zebra | `4e078ed` |
 
 ---
 
@@ -26,6 +29,10 @@ de `PLAN.md`. No reescribas este archivo salvo en la sección final
 ### Públicos
 - `GET /api/health` → `{ ok, version, time, node, db, dbError }`. `db`
   es boolean, cacheado 5 segundos.
+- `GET /api/auth/users` → `[{id,name,role,avatar,color}]` para los avatar
+  cards del LoginScreen. Solo `active=1`. Nunca expone `password_hash`.
+- `GET /api/settings` → objeto plano con todas las claves de la tabla
+  settings. `taxRate` y `lowStockThreshold` casteados a `number`.
 
 ### Auth (`server/routes/auth.js`)
 - `POST /api/auth/login` body `{id, password}` → `{token, user}`.
@@ -204,4 +211,21 @@ pos-paolitas-v2/
 <!-- Si tomas una decisión no obvia o dejas algo a medias, anótalo
      en bullets. No borres lo de arriba. -->
 
-- (vacío)
+- **2026-05-07 — Fases 2.4-lite + 3 + 4 cerradas.** Frontend SPA monta,
+  login con admin/admin123 entra al shell, sidebar respeta `ownerOnly`
+  (esperancita ve POS, Ventas y Pedidos; admin ve todo). SalesView
+  consume `/api/transactions/sales` con períodos hoy/semana/mes/año y
+  filtros site/delivery + búsqueda; ya hay 4 transacciones de ejemplo
+  en producción (T-1001..T-1004) con mezcla de tipos y métodos.
+- **Decisión menor:** vistas no implementadas (Pedidos, Dashboard,
+  Contabilidad, Inventario, Ajustes) usan un componente `Placeholder`
+  reutilizable en `client/src/views/Placeholder.tsx`. Cuando se
+  implementen sus vistas reales, reemplazar la línea correspondiente
+  en `VIEWS` de `client/src/components/AppShell.tsx`.
+- **Decisión menor:** `client/src/lib/icons.ts` normaliza la categoría
+  (lowercase + strip de diacríticos) para que tanto "Lácteos" como
+  "Lacteos" mapeen al mismo icono. Si la BD agrega categorías nuevas,
+  basta con agregarla al `RAW_MAP` en su forma sin tilde.
+- **Pendiente Fase 5:** las vistas reales (POS, Inventory, Orders,
+  Dashboard, Accounting, Settings). El `useCreateTransaction` en
+  `queries.ts` ya está listo para que POSView lo consuma.
