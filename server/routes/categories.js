@@ -43,7 +43,7 @@ export default async function categoryRoutes(app) {
 
   app.post(
     '/',
-    { schema: createSchema, preHandler: [app.requireOwner] },
+    { schema: createSchema, preHandler: [app.requireView('inventory')] },
     async (req, reply) => {
       const { name, icon, sort_order = 100 } = req.body;
       const trimmed = name.trim();
@@ -66,7 +66,7 @@ export default async function categoryRoutes(app) {
 
   app.put(
     '/:name',
-    { schema: updateSchema, preHandler: [app.requireOwner] },
+    { schema: updateSchema, preHandler: [app.requireView('inventory')] },
     async (req, reply) => {
       const name = decodeURIComponent(req.params.name);
       const fields = req.body;
@@ -91,7 +91,7 @@ export default async function categoryRoutes(app) {
 
   app.delete(
     '/:name',
-    { preHandler: [app.requireOwner] },
+    { preHandler: [app.requireView('inventory')] },
     async (req, reply) => {
       const name = decodeURIComponent(req.params.name);
       const inUse = await query(

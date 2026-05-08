@@ -18,6 +18,7 @@ const createSchema = {
       firstName: { type: ['string', 'null'], maxLength: 100 },
       lastName: { type: ['string', 'null'], maxLength: 100 },
       phone: { type: ['string', 'null'], maxLength: 30 },
+      permissions: { type: 'array', items: { type: 'string', maxLength: 30 }, maxItems: 20 },
     },
     additionalProperties: false,
   },
@@ -37,6 +38,7 @@ const updateSchema = {
       phone: { type: ['string', 'null'], maxLength: 30 },
       documentNumber: { type: ['string', 'null'], maxLength: 30 },
       address: { type: ['string', 'null'], maxLength: 255 },
+      permissions: { type: 'array', items: { type: 'string', maxLength: 30 }, maxItems: 20 },
     },
     additionalProperties: false,
   },
@@ -58,6 +60,7 @@ export default async function usersRoutes(app) {
       firstName = null,
       lastName = null,
       phone = null,
+      permissions = null,
     } = req.body;
 
     const existing = await query('SELECT id FROM users WHERE id = ?', [id]);
@@ -67,13 +70,14 @@ export default async function usersRoutes(app) {
 
     const hash = await bcrypt.hash(password, BCRYPT_ROUNDS);
     const canDashboard = role === 'owner' ? 1 : 0;
+    const permsJson = Array.isArray(permissions) ? JSON.stringify(permissions) : null;
 
     await query(
       `INSERT INTO users
          (id, name, password_hash, role, avatar, color, can_dashboard,
-          first_name, last_name, phone, active)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)`,
-      [id, name, hash, role, avatar, color, canDashboard, firstName, lastName, phone]
+          first_name, last_name, phone, permissions, active)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)`,
+      [id, name, hash, role, avatar, color, canDashboard, firstName, lastName, phone, permsJson]
     );
 
     const [row] = await query('SELECT * FROM users WHERE id = ?', [id]);
@@ -107,6 +111,15 @@ export default async function usersRoutes(app) {
       }
       fields.role = body.role;
       fields.can_dashboard = body.role === 'owner' ? 1 : 0;
+    }
+
+    if (body.permissions !== undefined) {
+      if (!isOwner) {
+        return reply.code(403).send({ error: 'Solo el propietario puede cambiar permisos' });
+      }
+      fields.permissions = Array.isArray(body.permissions)
+        ? JSON.stringify(body.permissions)
+        : null;
     }
 
     if (body.password !== undefined) {

@@ -62,7 +62,7 @@ const updateSchema = {
 };
 
 export default async function expensesRoutes(app) {
-  app.get('/', { schema: listSchema, preHandler: [app.requireOwner] }, async (req, reply) => {
+  app.get('/', { schema: listSchema, preHandler: [app.requireView('accounting')] }, async (req, reply) => {
     const range = defaultRange(req.query);
     if (!range) return reply.code(400).send({ error: 'Fechas inválidas' });
 
@@ -73,7 +73,7 @@ export default async function expensesRoutes(app) {
     return rows.map(toDTO);
   });
 
-  app.post('/', { schema: createSchema, preHandler: [app.requireOwner] }, async (req, reply) => {
+  app.post('/', { schema: createSchema, preHandler: [app.requireView('accounting')] }, async (req, reply) => {
     const { date, category, description, amount, notification_id = null } = req.body;
 
     const parsedDate = new Date(date);
@@ -98,7 +98,7 @@ export default async function expensesRoutes(app) {
     return reply.code(201).send(toDTO(rows[0]));
   });
 
-  app.put('/:id', { schema: updateSchema, preHandler: [app.requireOwner] }, async (req, reply) => {
+  app.put('/:id', { schema: updateSchema, preHandler: [app.requireView('accounting')] }, async (req, reply) => {
     const body = req.body;
     const fields = {};
 
@@ -127,7 +127,7 @@ export default async function expensesRoutes(app) {
     return toDTO(rows[0]);
   });
 
-  app.delete('/:id', { preHandler: [app.requireOwner] }, async (req, reply) => {
+  app.delete('/:id', { preHandler: [app.requireView('accounting')] }, async (req, reply) => {
     const result = await query('DELETE FROM expenses WHERE id = ?', [req.params.id]);
     if (result.affectedRows === 0) {
       return reply.code(404).send({ error: 'Gasto no encontrado' });
@@ -135,5 +135,5 @@ export default async function expensesRoutes(app) {
     return { ok: true };
   });
 
-  app.get('/categories', { preHandler: [app.requireOwner] }, async () => CATEGORIES);
+  app.get('/categories', { preHandler: [app.requireView('accounting')] }, async () => CATEGORIES);
 }

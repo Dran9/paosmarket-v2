@@ -187,12 +187,14 @@ export const api = {
     create: (body: {
       id: string; name: string; password: string; role: 'owner' | 'vendedora';
       avatar?: string; color?: string; firstName?: string | null;
+      permissions?: string[];
     }) => request<User>('/api/users', { method: 'POST', body }),
     update: (id: string, body: Partial<{
       name: string; password: string; role: 'owner' | 'vendedora';
       avatar: string; color: string; firstName: string | null;
       lastName: string | null; phone: string | null;
       documentNumber: string | null; address: string | null;
+      permissions: string[];
     }>) => request<User>(`/api/users/${id}`, { method: 'PUT', body }),
     remove: (id: string) => request<{ ok: boolean }>(`/api/users/${id}`, { method: 'DELETE' }),
   },

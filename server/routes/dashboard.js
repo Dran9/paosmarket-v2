@@ -22,7 +22,7 @@ const listSchema = {
 };
 
 export default async function dashboardRoutes(app) {
-  app.get('/', { schema: listSchema, preHandler: [app.requireOwner] }, async (req, reply) => {
+  app.get('/', { schema: listSchema, preHandler: [app.requireView(['dashboard', 'accounting'])] }, async (req, reply) => {
     const range = defaultRange(req.query);
     if (!range) return reply.code(400).send({ error: 'Fechas inválidas' });
     const { from, to } = range;

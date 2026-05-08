@@ -63,7 +63,12 @@ export default function AppShell() {
   const pendingOrders = orders.filter((o) => !TERMINAL_STATUSES.has(o.status)).length;
 
   const isOwner = u.role === 'owner';
-  const visibleNav = NAV.filter((n) => (n.ownerOnly ? isOwner : true));
+  const userPerms = u.permissions ?? [];
+  const visibleNav = NAV.filter((n) => {
+    if (!n.ownerOnly) return true;
+    if (isOwner) return true;
+    return userPerms.includes(n.key);
+  });
 
   const handleLogout = async () => {
     try {

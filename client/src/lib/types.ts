@@ -11,6 +11,7 @@ export interface User {
   phone?: string | null;
   documentNumber?: string | null;
   address?: string | null;
+  permissions?: string[];
 }
 
 export interface LoginUser {

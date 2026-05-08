@@ -1,6 +1,7 @@
 import fastifyJwt from '@fastify/jwt';
 import fastifyCookie from '@fastify/cookie';
 import crypto from 'crypto';
+import { query } from './db.js';
 
 const JWT_EXPIRES_IN = '12h';
 const COOKIE_NAME = 'token';
@@ -39,10 +40,43 @@ export async function setupAuth(app) {
       return reply.code(403).send({ error: 'Solo el propietario puede acceder' });
     }
   });
+
+  app.decorate('requireView', (viewKey) => async (req, reply) => {
+    try {
+      await req.jwtVerify();
+    } catch {
+      return reply.code(401).send({ error: 'No autorizado' });
+    }
+    if (req.user?.role === 'owner') return;
+    const required = Array.isArray(viewKey) ? viewKey : [viewKey];
+    const rows = await query(
+      'SELECT permissions FROM users WHERE id = ? AND active = 1',
+      [req.user.id]
+    );
+    if (!rows.length) {
+      return reply.code(401).send({ error: 'Usuario no encontrado' });
+    }
+    let perms = [];
+    const raw = rows[0].permissions;
+    if (Array.isArray(raw)) perms = raw;
+    else if (typeof raw === 'string' && raw) {
+      try { perms = JSON.parse(raw); } catch { perms = []; }
+    }
+    if (!required.some((k) => perms.includes(k))) {
+      return reply.code(403).send({ error: 'Sin permiso para esta acción' });
+    }
+  });
 }
 
 export function userToDTO(row) {
   if (!row) return null;
+  let permissions = [];
+  if (row.permissions !== undefined && row.permissions !== null) {
+    if (Array.isArray(row.permissions)) permissions = row.permissions;
+    else if (typeof row.permissions === 'string' && row.permissions) {
+      try { permissions = JSON.parse(row.permissions); } catch { permissions = []; }
+    }
+  }
   return {
     id: row.id,
     name: row.name,
@@ -56,6 +90,7 @@ export function userToDTO(row) {
     phone: row.phone || null,
     documentNumber: row.document_number || null,
     address: row.address || null,
+    permissions,
   };
 }
 

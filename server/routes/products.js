@@ -80,7 +80,7 @@ export default async function productRoutes(app) {
 
   app.post(
     '/',
-    { schema: productCreateSchema, preHandler: [app.requireOwner] },
+    { schema: productCreateSchema, preHandler: [app.requireView('inventory')] },
     async (req, reply) => {
       const {
         name,
@@ -107,7 +107,7 @@ export default async function productRoutes(app) {
 
   app.put(
     '/:id',
-    { schema: productUpdateSchema, preHandler: [app.requireOwner] },
+    { schema: productUpdateSchema, preHandler: [app.requireView('inventory')] },
     async (req, reply) => {
       const id = req.params.id;
       const fields = req.body;
@@ -133,7 +133,7 @@ export default async function productRoutes(app) {
   app.delete(
     '/:id',
     {
-      preHandler: [app.requireOwner],
+      preHandler: [app.requireView('inventory')],
       schema: {
         params: {
           type: 'object',
@@ -157,7 +157,7 @@ export default async function productRoutes(app) {
   app.post(
     '/bulk',
     {
-      preHandler: [app.requireOwner],
+      preHandler: [app.requireView('inventory')],
       schema: {
         body: {
           type: 'object',
@@ -227,7 +227,7 @@ export default async function productRoutes(app) {
 
   app.post(
     '/:id/stock',
-    { schema: stockSchema, preHandler: [app.requireOwner] },
+    { schema: stockSchema, preHandler: [app.requireView('inventory')] },
     async (req, reply) => {
       const result = await query(
         'UPDATE products SET stock = stock + ? WHERE id = ? AND active = 1',

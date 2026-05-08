@@ -1,7 +1,10 @@
 import { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import toast from 'react-hot-toast';
-import { Building2, SlidersHorizontal, Users, Truck, Plus, Pencil, Trash2, Eye, EyeOff } from 'lucide-react';
+import {
+  Building2, SlidersHorizontal, Users, Truck, Plus, Pencil, Trash2, Eye, EyeOff,
+  ShoppingCart, Receipt, BarChart3, Calculator, Package, Settings as SettingsIcon,
+} from 'lucide-react';
 import {
   useUsers, useCreateUser, useUpdateUser, useDeleteUser, useUpdateSettings,
   useDrivers, useCreateDriver, useUpdateDriver, useDeleteDriver,
@@ -29,17 +32,39 @@ interface UserForm {
   firstName: string;
 }
 
+const PERMISSION_OPTIONS: { key: string; label: string; icon: any; baseline?: boolean }[] = [
+  { key: 'pos', label: 'Punto de Venta', icon: ShoppingCart, baseline: true },
+  { key: 'sales', label: 'Ventas', icon: Receipt, baseline: true },
+  { key: 'orders', label: 'Pedidos', icon: Truck, baseline: true },
+  { key: 'inventory', label: 'Inventario', icon: Package },
+  { key: 'dashboard', label: 'Dashboard', icon: BarChart3 },
+  { key: 'accounting', label: 'Contabilidad', icon: Calculator },
+  { key: 'settings', label: 'Ajustes', icon: SettingsIcon },
+];
+
 function UserModal({ user, onClose }: { user: User | null; onClose: () => void }) {
   const createUser = useCreateUser();
   const updateUser = useUpdateUser();
   const isEdit = !!user;
   const [showPass, setShowPass] = useState(false);
+  const [permissions, setPermissions] = useState<string[]>(
+    user?.permissions ?? []
+  );
 
-  const { register, handleSubmit, formState: { errors } } = useForm<UserForm>({
+  const { register, handleSubmit, watch, formState: { errors } } = useForm<UserForm>({
     defaultValues: user
       ? { name: user.name, role: user.role, avatar: user.avatar, color: user.color, firstName: user.firstName || '', id: user.id, password: '' }
       : { id: '', name: '', password: '', role: 'vendedora', avatar: '', color: '#6366f1', firstName: '' },
   });
+
+  const watchedRole = watch('role');
+  const isOwnerRole = watchedRole === 'owner';
+
+  const togglePerm = (key: string) => {
+    setPermissions((prev) =>
+      prev.includes(key) ? prev.filter((k) => k !== key) : [...prev, key]
+    );
+  };
 
   const onSubmit = async (data: UserForm) => {
     try {
@@ -51,6 +76,7 @@ function UserModal({ user, onClose }: { user: User | null; onClose: () => void }
         body.avatar = data.avatar || data.name[0]?.toUpperCase() || '';
         body.color = data.color;
         body.firstName = data.firstName || null;
+        body.permissions = permissions;
         await updateUser.mutateAsync({ id: user!.id, body });
         toast.success('Empleado actualizado');
       } else {
@@ -62,6 +88,7 @@ function UserModal({ user, onClose }: { user: User | null; onClose: () => void }
           avatar: data.avatar || data.name[0]?.toUpperCase() || '',
           color: data.color,
           firstName: data.firstName || null,
+          permissions,
         });
         toast.success('Empleado creado');
       }
@@ -134,6 +161,53 @@ function UserModal({ user, onClose }: { user: User | null; onClose: () => void }
               className="w-full h-10 px-1 py-1 border-2 border-slate-200 rounded-lg cursor-pointer" />
           </div>
         </div>
+
+        <div className="border-t border-slate-200 pt-3">
+          <label className="text-xs font-semibold text-slate-600 block mb-2">Privilegios — páginas que puede ver</label>
+          {isOwnerRole ? (
+            <div className="text-xs text-slate-500 bg-pink-50 border-2 border-pink-100 rounded-lg p-2.5">
+              Como <strong>Propietaria</strong>, ve todas las páginas automáticamente.
+            </div>
+          ) : (
+            <>
+              <div className="grid grid-cols-2 gap-1.5">
+                {PERMISSION_OPTIONS.map((opt) => {
+                  const Icon = opt.icon;
+                  const checked = opt.baseline || permissions.includes(opt.key);
+                  return (
+                    <label
+                      key={opt.key}
+                      className={`flex items-center gap-2 px-2.5 py-2 rounded-lg border-2 cursor-pointer transition-all ${
+                        opt.baseline
+                          ? 'bg-slate-50 border-slate-200 cursor-default'
+                          : checked
+                            ? 'bg-indigo-50 border-indigo-300 text-indigo-700'
+                            : 'bg-white border-slate-200 hover:border-indigo-200 text-slate-600'
+                      }`}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={checked}
+                        disabled={opt.baseline}
+                        onChange={() => !opt.baseline && togglePerm(opt.key)}
+                        className="accent-indigo-500"
+                      />
+                      <Icon size={14} className="flex-shrink-0" />
+                      <span className="text-xs font-semibold flex-1">{opt.label}</span>
+                      {opt.baseline && (
+                        <span className="text-[9px] text-slate-400 font-semibold uppercase">por defecto</span>
+                      )}
+                    </label>
+                  );
+                })}
+              </div>
+              <p className="text-[10px] text-slate-400 mt-1.5">
+                POS, Ventas y Pedidos siempre están disponibles. El resto se concede explícitamente.
+              </p>
+            </>
+          )}
+        </div>
+
         <div className="flex justify-end gap-2 pt-1">
           <button type="button" onClick={onClose}
             className="px-4 py-2 text-sm font-semibold text-slate-600 border-2 border-slate-200 rounded-lg hover:bg-slate-50">
