@@ -17,25 +17,25 @@ export default function ProductCard({ product, onClick }: Props) {
       type="button"
       disabled={out}
       onClick={() => onClick(product)}
-      className={`bg-white rounded-2xl border-2 border-slate-200 p-4 flex flex-col items-stretch text-left transition-all ${
+      className={`bg-white rounded-xl border-2 border-slate-200 p-3 flex flex-col items-stretch text-left transition-all ${
         out
           ? 'opacity-40 cursor-not-allowed'
           : 'hover:border-indigo-400 hover:-translate-y-0.5 hover:shadow-md cursor-pointer'
       }`}
     >
-      <div className="flex justify-center mb-3">
-        <div className="w-20 h-20 rounded-full bg-indigo-100 flex items-center justify-center">
-          <CategoryIcon category={product.category} size={28} className="text-indigo-500" />
+      <div className="flex justify-center mb-2">
+        <div className="w-16 h-16 rounded-full bg-indigo-100 flex items-center justify-center">
+          <CategoryIcon category={product.category} size={24} className="text-indigo-500" />
         </div>
       </div>
-      <div className="text-lg font-bold text-center text-slate-800 mb-2 leading-tight line-clamp-2">
+      <div className="text-base font-bold text-center text-slate-800 mb-1.5 leading-tight line-clamp-2">
         {product.name}
       </div>
-      <div className="text-2xl font-black text-center text-indigo-500 mb-2">
+      <div className="text-xl font-black text-center text-indigo-500 mb-1.5">
         {settings.currencySymbol} {product.price.toFixed(2)}
       </div>
       <div
-        className={`text-sm text-center font-medium ${
+        className={`text-xs text-center font-medium ${
           out ? 'text-red-500' : low ? 'text-amber-600' : 'text-slate-500'
         }`}
       >

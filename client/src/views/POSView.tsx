@@ -103,7 +103,7 @@ export default function POSView() {
           </div>
         </div>
 
-        <div className="grid grid-cols-[repeat(auto-fill,minmax(150px,1fr))] gap-3 overflow-y-auto flex-1 pb-2 pr-1">
+        <div className="grid grid-cols-[repeat(auto-fill,minmax(128px,1fr))] gap-2.5 overflow-y-auto flex-1 pb-2 pr-1">
           {filtered.map((p) => (
             <ProductCard key={p.id} product={p} onClick={(prod: Product) => addToCart(prod)} />
           ))}

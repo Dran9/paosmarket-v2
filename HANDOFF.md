@@ -26,6 +26,7 @@ de `PLAN.md`. No reescribas este archivo salvo en la sección final
 | 5.2 frontend | DeliveryModal en POS, OrdersView editable, BellMenu, "En tienda" | `c527719` |
 | 6 | Backend completo + 4 vistas owner-only (Inventory/Dashboard/Accounting/Settings) | `07c5bfa` |
 | 6.3 | WhatsApp Business + drivers CRUD + code splitting (540KB→111KB) | `6ebeb56` |
+| 6.4 | UX polish: DeliveryModal compacto sin choferes, ProductCard -15% | `<actual>` |
 
 ---
 
@@ -408,29 +409,136 @@ pos-paolitas-v2/
   "WhatsApp Business". Sin esas vars, `notifyDriver` es no-op (no rompe).
 - **Pendiente activación Telegram en prod**: faltan `TELEGRAM_BOT_TOKEN` y
   `TELEGRAM_ADMIN_CHAT_ID`. Pasos en el bloque "Util Telegram" arriba.
+- **2026-05-08 — Fase 6.4 UX (commit 236b4a0 + siguiente).**
+    - **DeliveryModal sin choferes**: Daniel pidió quitar el selector de chofer
+      del wizard de creación. La asignación queda solo en OrdersView (edición
+      inline) una vez creado el pedido. POST /api/orders sigue aceptando
+      `driver_id` opcional, simplemente el cliente manda `null`.
+    - **DeliveryModal compacto**: pasó de `size="lg"` a `"md"`, KPIs
+      condensados en una franja, fields con padding chico (py-1.5), notas
+      como input simple, botones de transporte tamaño compacto. Componente
+      `CompactField` local para labels uppercase de 10px.
+    - **ProductCard -15% en POS**: padding p-4→p-3, icono 80px→64px (28→24),
+      nombre text-lg→text-base, precio text-2xl→text-xl, stock text-sm→text-xs,
+      bordes rounded-2xl→rounded-xl. Grid del POS pasa de
+      `minmax(150px,1fr)` a `minmax(128px,1fr)` y `gap-3`→`gap-2.5` para
+      aprovechar el card más chico (≈15% más productos por fila).
 
 ---
 
 ## Prompt para la siguiente instancia
 
 ```
-Soy Daniel. El POS Paolita's Market v2 tiene todas las fases cerradas hasta la 6.
-Proyecto: /Users/dran/Documents/Codex openai/POS PAO/pos-paolitas-v2/
+Soy Daniel. POS Paolita's Market v2, todas las fases hasta la 6.4 están cerradas.
+
+Proyecto local: /Users/dran/Documents/Codex openai/POS PAO/pos-paolitas-v2/
 GitHub: https://github.com/Dran9/paosmarket-v2 (branch main)
 Producción: https://mediumaquamarine-curlew-407592.hostingersite.com
 
-Lee PLAN.md + HANDOFF.md antes de cualquier tarea.
+PRIMERA ACCIÓN: lee PLAN.md ENTERO y HANDOFF.md ENTERO antes de tocar nada.
+Después dame plan corto (3-5 bullets) de lo que vas a hacer y procedé sin
+esperar OK (modo autónomo, igual que las instancias anteriores).
 
-Estado actual (commit 07c5bfa):
-- Todas las vistas implementadas: POS, Ventas, Pedidos, Dashboard, Contabilidad, Inventario, Ajustes.
-- Backend completo con todos los endpoints documentados en HANDOFF.md.
-- Build limpio, sin errores TypeScript.
+# ESTADO REAL AL 2026-05-08
 
-Tareas pendientes identificadas:
-1. [OPCIONAL] Fase 6.3 WhatsApp Business — SOLO si Daniel confirma.
-   Ver sección "Drivers en stand-by" en HANDOFF.md.
-2. [COSMÉTICO] Code splitting para reducir chunk de 540KB.
-   Lazy import de xlsx y chart.js solo cuando se necesitan.
-3. [VALIDACIÓN] Verificar criterios de aceptación en producción con login real.
+Funcional end-to-end y desplegado:
+- POSView con búsqueda, scanner, carrito, PaymentModal (Efectivo/QR/Tarjeta/Mixto),
+  ReceiptModal imprimible, toggle delivery → DeliveryModal compacto.
+- SalesView, OrdersView (edición inline + status workflow + asignación de chofer),
+  InventoryView (CRUD + import/export Excel + ajuste stock),
+  DashboardView (6 KPIs + 2 donuts + bar top10 + 2 tablas),
+  AccountingView (resumen IVA + P&L + CRUD gastos),
+  SettingsView (4 tabs: Negocio, General, Empleados, Choferes con WhatsApp ID).
+- Backend completo (auth, products, transactions, orders, drivers CRUD, expenses,
+  users, settings PUT, dashboard, notifications, whatsapp util).
+- Code splitting activo: bundle inicial 108KB (gzip 29KB).
+- Migraciones 001+002+003 corridas en prod.
+
+# QUÉ NO HACER
+
+- No reintroducir el selector de choferes en DeliveryModal (Daniel lo quitó
+  explícitamente). La asignación va solo desde OrdersView una vez creado el
+  pedido.
+- No instalar deps nuevas. xlsx, chart.js, react-chartjs-2, react-hook-form,
+  react-hot-toast, lucide-react ya están.
+- No hardcodear "Paolita's Market". Siempre desde settings.businessName.
+- No usar Next.js, Express, Redux, ORMs, React Router. Stack fijado en PLAN.md.
+- No commitear client/dist/ ni .env.
+- DB_HOST=127.0.0.1 en prod (NO "localhost", IPv6 bug en Node 22).
+- No top-level await en server.js (Hostinger lsnode require()).
+
+# PENDIENTES DE ACTIVACIÓN (no son de código, son de configuración)
+
+1. **WhatsApp Business**: agregar en panel Hostinger:
+   - WHATSAPP_PHONE_NUMBER_ID (de Meta developer console)
+   - WHATSAPP_ACCESS_TOKEN (system user permanente, no temporary)
+   Después poblar `whatsapp_id` por chofer desde Settings → Choferes.
+   Util `server/whatsapp.js` ya hace fire-and-forget en POST/PUT orders.
+
+2. **Telegram (admin notifs)**: agregar TELEGRAM_BOT_TOKEN y TELEGRAM_ADMIN_CHAT_ID.
+   Pasos completos en HANDOFF.md sección "Util Telegram".
+
+# POSIBLES TAREAS PARA ESTA INSTANCIA
+
+(elegir según lo que pida Daniel, NO inventar trabajo)
+
+A. **F2/F3/ESC atajos de teclado** en POSView (cobrar/delivery/cerrar modal).
+   Mencionado como deseable en PLAN.md sección Fase 6 polish.
+
+B. **Recibo imprimible mejorado** — el ReceiptModal ya imprime con CSS
+   @media print, pero podría agregarse logo, NIT, dirección desde settings.
+
+C. **Service Worker** para cache de JS/CSS/HTML offline (no de API). Mencionado
+   en PLAN.md Fase 6 polish.
+
+D. **Bulk import endpoint** — actualmente Excel import dispara N requests POST
+   /api/products. Si Paola importa 500 filas se hacen 500 requests. Podría
+   agregarse POST /api/products/bulk que acepte array.
+
+E. **Refinamientos UX que Daniel descubra al usar la app real** — Daniel
+   prueba en navegador y suele pedir compactar, agrandar, reordenar cosas.
+   Prioridad: hacer exactamente lo que pide, no extender alcance.
+
+F. **Bugs si aparecen** — diagnosticar con root cause, no parchear con
+   try/catch genérico.
+
+# REGLAS DE TRABAJO
+
+- IVA 13% Bolivia, server siempre calcula montos
+- Soft delete (active=0). Excepción: tx asociada a pedido devuelto sí se
+  elimina (ya implementado).
+- bcrypt + JWT secret de env. Prepared statements.
+- Migraciones idempotentes (la 002 y 003 usan ALTER directo, registradas
+  en _migrations).
+- Stock negativo permitido en server.
+- Permisos: owner=todo, vendedora=POS+Ventas+Pedidos.
+- UI y commits en español.
+
+# ARCHIVOS QUE PROBABLEMENTE TENGAS QUE TOCAR
+
+Backend: server/routes/{products,transactions,orders,users,expenses,
+  dashboard,settings,drivers,notifications,auth}.js, server/{db,auth,
+  notifications,telegram,whatsapp}.js
+
+Frontend: client/src/lib/{api,queries,store,types,utils,icons}.ts,
+  client/src/views/{POSView,SalesView,OrdersView,InventoryView,
+  DashboardView,AccountingView,SettingsView}.tsx,
+  client/src/components/{AppShell,LoginScreen,BellMenu,Modal,Field,
+  EditableCell,CategoryIcon,ProductCard}.tsx
+
+# FLUJO ESPERADO
+
+1. Plan corto (3-5 bullets) en chat
+2. Implementar
+3. npm run build (debe pasar limpio)
+4. Probar local con node --env-file=.env server.js + curl
+5. Commit en español + push origin main
+6. Esperar deploy Hostinger (~90s) — pollear /api/health hasta db:true
+   Y verificar bundle nuevo si tocaste frontend (grep del nombre del chunk
+   en index.html servido)
+7. Validar endpoint nuevo o feature en producción
+8. Actualizar HANDOFF.md sección "Pendientes y notas" si dejaste algo
+9. Actualizar el prompt al final de HANDOFF.md si la siguiente instancia
+   necesita contexto distinto al actual
 ```
 
