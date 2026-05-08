@@ -8,3 +8,6 @@ config.json
 tmp/
 bun.lock
 bun.lockb
+
+# Claude Code workspace files (no afectan deploy)
+.claude/
