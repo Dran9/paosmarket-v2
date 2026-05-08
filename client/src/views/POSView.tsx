@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Search,
   ShoppingCart,
@@ -17,6 +17,7 @@ import {
   Loader2,
   Coins,
   ReceiptText,
+  ScanLine,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import {
@@ -49,6 +50,8 @@ export default function POSView() {
   const [showDelivery, setShowDelivery] = useState(false);
   const [showReceipt, setShowReceipt] = useState<Transaction | null>(null);
   const [showOrderConfirm, setShowOrderConfirm] = useState<Order | null>(null);
+  const [scanFlash, setScanFlash] = useState<string | null>(null);
+  const searchRef = useRef<HTMLInputElement>(null);
 
   const filtered = useMemo(() => {
     const q = search.toLowerCase().trim();
@@ -56,6 +59,7 @@ export default function POSView() {
     return products.filter(
       (p) =>
         p.name.toLowerCase().includes(q) ||
+        (p.brand && p.brand.toLowerCase().includes(q)) ||
         (p.barcode && p.barcode.toLowerCase().includes(q))
     );
   }, [products, search]);
@@ -87,6 +91,80 @@ export default function POSView() {
 
   const anyModalOpen = showPayment || showDelivery || !!showReceipt || !!showOrderConfirm;
 
+  const flashScan = (name: string) => {
+    setScanFlash(name);
+    window.setTimeout(() => setScanFlash(null), 900);
+  };
+
+  const tryAddByBarcode = (raw: string): boolean => {
+    const q = raw.trim();
+    if (!q) return false;
+    const exact = products.find((p) => p.barcode && p.barcode === q);
+    if (exact) {
+      if (exact.stock <= 0) {
+        toast.error(`${exact.name} sin stock`);
+      } else {
+        addToCart(exact);
+        flashScan(exact.name);
+      }
+      return true;
+    }
+    return false;
+  };
+
+  // Scanner: match exacto de barcode auto-agrega al carrito (sin Enter)
+  useEffect(() => {
+    if (!search.trim()) return;
+    if (anyModalOpen) return;
+    if (tryAddByBarcode(search)) {
+      setSearch('');
+      searchRef.current?.focus();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [search, products, anyModalOpen]);
+
+  // Auto-focus permanente del search (excepto si hay modal abierto o el usuario
+  // está editando otro input/cantidad del carrito).
+  useEffect(() => {
+    if (anyModalOpen) return;
+    const refocus = () => {
+      const tag = (document.activeElement as HTMLElement)?.tagName;
+      if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || tag === 'BUTTON') return;
+      searchRef.current?.focus();
+    };
+    refocus();
+    const id = window.setInterval(refocus, 1500);
+    return () => window.clearInterval(id);
+  }, [anyModalOpen]);
+
+  const handleSearchKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key !== 'Enter') return;
+    e.preventDefault();
+    const q = search.trim();
+    if (!q) return;
+    if (tryAddByBarcode(search)) {
+      setSearch('');
+      return;
+    }
+    if (filtered.length === 1) {
+      const p = filtered[0];
+      if (p.stock <= 0) {
+        toast.error(`${p.name} sin stock`);
+      } else {
+        addToCart(p);
+        flashScan(p.name);
+        setSearch('');
+      }
+      return;
+    }
+    if (filtered.length === 0) {
+      toast.error(`Sin coincidencias para "${q}"`);
+      return;
+    }
+    // varias coincidencias: dejar el filtro tal cual para que el usuario elija
+    toast(`${filtered.length} coincidencias — elegí una`, { icon: '🔍' });
+  };
+
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       if (anyModalOpen) return;
@@ -114,11 +192,25 @@ export default function POSView() {
               className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"
             />
             <input
+              ref={searchRef}
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="Buscar producto o código de barras…"
-              className="w-full pl-12 pr-4 py-3 text-[22px] font-semibold rounded-xl border-2 border-slate-200 focus:border-indigo-500 outline-none bg-white"
+              onKeyDown={handleSearchKeyDown}
+              placeholder="Escanear código o buscar producto…"
+              autoFocus
+              className={`w-full pl-12 pr-32 py-3 text-[22px] font-semibold rounded-xl border-2 outline-none bg-white transition-colors ${
+                scanFlash ? 'border-emerald-500 bg-emerald-50' : 'border-slate-200 focus:border-indigo-500'
+              }`}
             />
+            <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-1.5 text-xs font-semibold text-emerald-600 bg-emerald-50 border border-emerald-200 rounded-full px-2.5 py-1 pointer-events-none">
+              <ScanLine size={12} />
+              <span>Scanner activo</span>
+            </div>
+            {scanFlash && (
+              <div className="absolute -bottom-7 left-0 right-0 text-xs font-semibold text-emerald-600 flex items-center gap-1.5">
+                <Check size={13} /> Agregado: {scanFlash}
+              </div>
+            )}
           </div>
         </div>
 

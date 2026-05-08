@@ -18,7 +18,10 @@ import POSView from '@/views/POSView';
 import SalesView from '@/views/SalesView';
 import OrdersView from '@/views/OrdersView';
 import BellMenu from '@/components/BellMenu';
+import { useOrders } from '@/lib/queries';
 import type { ViewKey } from '@/lib/types';
+
+const TERMINAL_STATUSES = new Set(['entregado', 'devuelto', 'cancelado']);
 
 // Vistas owner-only se cargan bajo demanda (chart.js + xlsx + forms son pesados).
 const InventoryView = lazy(() => import('@/views/InventoryView'));
@@ -53,8 +56,11 @@ const NAV: NavEntry[] = [
 
 export default function AppShell() {
   const { view, setView, currentUser, settings, setUser } = useStore();
+  const { data: orders = [] } = useOrders();
   if (!currentUser) return null;
   const u = currentUser;
+
+  const pendingOrders = orders.filter((o) => !TERMINAL_STATUSES.has(o.status)).length;
 
   const isOwner = u.role === 'owner';
   const visibleNav = NAV.filter((n) => (n.ownerOnly ? isOwner : true));
@@ -105,6 +111,7 @@ export default function AppShell() {
           {visibleNav.map((n) => {
             const Icon = n.icon;
             const active = activeKey === n.key;
+            const showOrdersBadge = n.key === 'orders' && pendingOrders > 0;
             const btn = (
               <button
                 key={n.key}
@@ -119,7 +126,15 @@ export default function AppShell() {
                   <span className="absolute left-0 top-1/2 -translate-y-1/2 w-0.5 h-5 bg-indigo-400 rounded-r" />
                 )}
                 <Icon size={14} className="flex-shrink-0" />
-                <span className="truncate">{n.label}</span>
+                <span className="truncate flex-1 text-left">{n.label}</span>
+                {showOrdersBadge && (
+                  <span
+                    className="ml-auto inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full bg-amber-400 text-slate-900 text-[10px] font-extrabold leading-none"
+                    title={`${pendingOrders} pedido${pendingOrders === 1 ? '' : 's'} pendiente${pendingOrders === 1 ? '' : 's'}`}
+                  >
+                    {pendingOrders}
+                  </span>
+                )}
               </button>
             );
             // Insertar campana justo antes de Ajustes

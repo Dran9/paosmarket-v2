@@ -17,13 +17,17 @@ export default function ProductCard({ product, onClick }: Props) {
       type="button"
       disabled={out}
       onClick={() => onClick(product)}
-      className={`bg-white rounded-xl border-2 border-slate-200 p-3 flex flex-col items-stretch text-left transition-all ${
+      className={`bg-white rounded-xl border-2 border-slate-200 p-3 flex flex-col items-stretch text-left transition-all relative ${
         out
           ? 'opacity-40 cursor-not-allowed'
           : 'hover:border-indigo-400 hover:-translate-y-0.5 hover:shadow-md cursor-pointer'
       }`}
     >
-      <div className="flex justify-center mb-2">
+      <div className="absolute top-2 left-2 inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-indigo-50 border border-indigo-100 text-[9px] font-semibold text-indigo-600 max-w-[80%] truncate">
+        <CategoryIcon category={product.category} size={9} className="text-indigo-500 flex-shrink-0" />
+        <span className="truncate">{product.category}</span>
+      </div>
+      <div className="flex justify-center mb-2 mt-3">
         <div className="w-16 h-16 rounded-full bg-indigo-100 flex items-center justify-center">
           <CategoryIcon category={product.category} size={24} className="text-indigo-500" />
         </div>
