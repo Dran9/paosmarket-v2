@@ -25,6 +25,7 @@ de `PLAN.md`. No reescribas este archivo salvo en la sección final
 | 5.1 backend | orders + drivers + notifications persistentes + Telegram util + migración 002 | `8e2431a` |
 | 5.2 frontend | DeliveryModal en POS, OrdersView editable, BellMenu, "En tienda" | `c527719` |
 | 6 | Backend completo + 4 vistas owner-only (Inventory/Dashboard/Accounting/Settings) | `07c5bfa` |
+| 6.3 | WhatsApp Business + drivers CRUD + code splitting (540KB→111KB) | `6ebeb56` |
 
 ---
 
@@ -317,6 +318,32 @@ pos-paolitas-v2/
 ### Orders actualizado
 - `devuelto + transport_settled='tienda'`: crea notif `transport_loss` severity='warning'
   con instrucción de registrar el gasto manualmente en Contabilidad.
+- POST y PUT (cambio de driver_id): llaman `notifyDriver` async fire-and-forget.
+
+### Drivers CRUD (`server/routes/drivers.js`) — owner para CRUD, auth para list
+- `GET /api/drivers` — lista active=1, ordena por nombre. DTO incluye `whatsappId` y `active`.
+- `POST /api/drivers` (owner) `{id, name, phone, plate?, whatsappId?}` → 201 con DTO.
+- `PUT /api/drivers/:id` (owner) parcial.
+- `DELETE /api/drivers/:id` (owner) soft delete.
+
+### WhatsApp Business (`server/whatsapp.js`)
+- `notifyDriver(driver, order, log)` usa Cloud API v20.0.
+- Env vars requeridos: `WHATSAPP_PHONE_NUMBER_ID` y `WHATSAPP_ACCESS_TOKEN`.
+  Si faltan, log warning una sola vez y la función es no-op (no rompe nada).
+- Si el driver no tiene `whatsapp_id`, salta el envío.
+- Mensaje plano con id, cliente, dirección, total. Sin templates por ahora
+  (la app de Meta puede requerir verificación para mensajes proactivos
+  fuera de la ventana de 24h).
+
+**Setup en producción para activar:**
+1. Crear app en https://developers.facebook.com → WhatsApp Business.
+2. Obtener `phone number ID` (no es el número, es un identificador) y un
+   `access token` (system user permanente, no temporary).
+3. Setear ambos en panel de Hostinger como env vars.
+4. Para cada chofer, setear `whatsapp_id` desde Settings → Choferes (formato
+   E.164 sin '+', solo dígitos: ej "59178001005").
+5. El chofer debe iniciar conversación con el número de la tienda primero
+   (sino los mensajes van al "no opt-in" y se rebotan).
 
 ---
 
@@ -370,12 +397,17 @@ pos-paolitas-v2/
   y tiene transport_cost>0, se crea una notif persistente type='transport_loss' severity='warning'.
   La admin registra el gasto manualmente en AccountingView. POST /api/expenses acepta
   `notification_id` opcional; si viene, marca esa notif como read.
-- **Pendiente opcional — Fase 6.3 WhatsApp Business**: NO arrancado (requiere confirmación
-  Daniel). Pendiente: migración 003 con `drivers.whatsapp_id`, util `notifyDriver`,
-  llamada async desde POST/PUT orders cuando cambia driver_id.
-- **Pendiente cosmético**: los chunks de build superan 500KB (xlsx + chart.js pesados).
-  Si el rendimiento en Hostinger es un problema, considerar lazy imports o code-splitting
-  manual en vite.config.ts con `build.rollupOptions.output.manualChunks`.
+- **2026-05-08 — Fase 6.3 cerrada (commit 6ebeb56).** Migración 003 (drivers.whatsapp_id +
+  drivers.active), util `notifyDriver`, integración fire-and-forget en POST y PUT orders,
+  CRUD drivers en backend + tab Choferes en SettingsView. Validado en producción.
+- **2026-05-08 — Code splitting cerrado (mismo commit).** Bundle inicial 540KB→111KB
+  (gzip 29KB). Vendor chunks separados: react/charts/xlsx/query. Vistas owner-only
+  cargan bajo demanda con `lazy` + `Suspense`.
+- **Pendiente activación WhatsApp en prod**: faltan env vars `WHATSAPP_PHONE_NUMBER_ID` y
+  `WHATSAPP_ACCESS_TOKEN` en panel Hostinger. Pasos detallados arriba en el bloque
+  "WhatsApp Business". Sin esas vars, `notifyDriver` es no-op (no rompe).
+- **Pendiente activación Telegram en prod**: faltan `TELEGRAM_BOT_TOKEN` y
+  `TELEGRAM_ADMIN_CHAT_ID`. Pasos en el bloque "Util Telegram" arriba.
 
 ---
 
