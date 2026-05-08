@@ -1,4 +1,6 @@
-import { iconFor } from '@/lib/icons';
+import { useMemo } from 'react';
+import { useCategories } from '@/lib/queries';
+import { iconFor, lookupIcon } from '@/lib/icons';
 
 interface Props {
   category: string;
@@ -7,6 +9,15 @@ interface Props {
 }
 
 export default function CategoryIcon({ category, size = 18, className }: Props) {
-  const Icon = iconFor(category);
+  const { data: categories = [] } = useCategories();
+
+  const Icon = useMemo(() => {
+    const norm = (s: string) => s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
+    const target = norm(category || '');
+    const match = categories.find((c) => norm(c.name) === target);
+    if (match) return lookupIcon(match.icon);
+    return iconFor(category);
+  }, [categories, category]);
+
   return <Icon size={size} className={className} />;
 }

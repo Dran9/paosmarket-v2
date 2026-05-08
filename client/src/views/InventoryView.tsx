@@ -2,7 +2,7 @@ import { useState, useRef, useMemo } from 'react';
 import { useForm } from 'react-hook-form';
 import toast from 'react-hot-toast';
 import { Plus, Pencil, Trash2, PackagePlus, Download, Upload } from 'lucide-react';
-import { useProducts, useCreateProduct, useUpdateProduct, useDeleteProduct, useStockAdjust, useBulkImportProducts } from '@/lib/queries';
+import { useProducts, useCreateProduct, useUpdateProduct, useDeleteProduct, useStockAdjust, useBulkImportProducts, useCategories } from '@/lib/queries';
 import { useStore } from '@/lib/store';
 import { fmt } from '@/lib/utils';
 import CategoryIcon from '@/components/CategoryIcon';
@@ -10,7 +10,6 @@ import Modal from '@/components/Modal';
 import type { Product } from '@/lib/types';
 
 const UNITS = ['pza', 'kg', 'L', 'caja', 'bolsa', 'par'];
-const CATEGORIES = ['Bebidas', 'Lácteos', 'Panadería', 'Abarrotes', 'Snacks', 'Limpieza', 'Higiene', 'Frutas', 'Verduras', 'Carnes', 'Otros'];
 
 interface ProductForm {
   name: string;
@@ -32,12 +31,15 @@ function ProductModal({
 }) {
   const createProduct = useCreateProduct();
   const updateProduct = useUpdateProduct();
+  const { data: categories = [] } = useCategories();
   const isEdit = !!product;
+
+  const defaultCategory = product?.category || categories[0]?.name || 'Otros';
 
   const { register, handleSubmit, formState: { errors } } = useForm<ProductForm>({
     defaultValues: product
       ? { name: product.name, brand: product.brand || '', category: product.category, barcode: product.barcode, price: product.price, cost: product.cost, stock: product.stock, unit: product.unit }
-      : { name: '', brand: '', category: 'Abarrotes', barcode: '', price: 0, cost: 0, stock: 0, unit: 'pza' },
+      : { name: '', brand: '', category: defaultCategory, barcode: '', price: 0, cost: 0, stock: 0, unit: 'pza' },
   });
 
   const onSubmit = async (data: ProductForm) => {
@@ -81,7 +83,7 @@ function ProductModal({
             <label className="text-xs font-semibold text-slate-600 block mb-1">Categoría *</label>
             <select {...register('category', { required: true })}
               className="w-full px-3 py-2 border-2 border-slate-200 rounded-lg focus:border-indigo-500 outline-none text-sm bg-white">
-              {CATEGORIES.map((c) => <option key={c}>{c}</option>)}
+              {categories.map((c) => <option key={c.name}>{c.name}</option>)}
             </select>
           </div>
           <div>

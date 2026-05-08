@@ -357,6 +357,38 @@ export const useBulkImportProducts = () => {
   });
 };
 
+export const useCategories = () =>
+  useQuery({
+    queryKey: ['categories'],
+    queryFn: () => api.categories.list(),
+    staleTime: 5 * 60_000,
+  });
+
+export const useCreateCategory = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: api.categories.create,
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['categories'] }),
+  });
+};
+
+export const useUpdateCategory = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ name, body }: { name: string; body: Parameters<typeof api.categories.update>[1] }) =>
+      api.categories.update(name, body),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['categories'] }),
+  });
+};
+
+export const useDeleteCategory = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: api.categories.remove,
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['categories'] }),
+  });
+};
+
 export const useStockAdjust = () => {
   const qc = useQueryClient();
   return useMutation({

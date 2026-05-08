@@ -15,6 +15,7 @@ import notificationRoutes from './server/routes/notifications.js';
 import usersRoutes from './server/routes/users.js';
 import expensesRoutes from './server/routes/expenses.js';
 import dashboardRoutes from './server/routes/dashboard.js';
+import categoryRoutes from './server/routes/categories.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -47,6 +48,7 @@ async function start() {
   await app.register(usersRoutes, { prefix: '/api/users' });
   await app.register(expensesRoutes, { prefix: '/api/expenses' });
   await app.register(dashboardRoutes, { prefix: '/api/dashboard' });
+  await app.register(categoryRoutes, { prefix: '/api/categories' });
 
   if (fs.existsSync(distDir)) {
     await app.register(fastifyStatic, { root: distDir, prefix: '/' });

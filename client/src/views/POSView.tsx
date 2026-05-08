@@ -24,7 +24,12 @@ import {
   useProducts,
   useCreateTransaction,
   useCreateOrder,
+  useCategories,
 } from '@/lib/queries';
+import CategoryIcon from '@/components/CategoryIcon';
+import CategoryModal from '@/components/CategoryModal';
+import { Plus } from 'lucide-react';
+import type { Category } from '@/lib/types';
 import { useStore } from '@/lib/store';
 import { fmt, round2, calcTax, fmtDateTime } from '@/lib/utils';
 import type {
@@ -42,7 +47,9 @@ type SaleType = 'site' | 'delivery';
 
 export default function POSView() {
   const { data: products = [], isLoading } = useProducts();
-  const { cart, settings, addToCart, decQty, setQty, removeItem, resetCart } = useStore();
+  const { data: categories = [] } = useCategories();
+  const { cart, settings, currentUser, addToCart, decQty, setQty, removeItem, resetCart } = useStore();
+  const isOwner = currentUser?.role === 'owner';
 
   const [search, setSearch] = useState('');
   const [saleType, setSaleType] = useState<SaleType>('site');
@@ -51,18 +58,24 @@ export default function POSView() {
   const [showReceipt, setShowReceipt] = useState<Transaction | null>(null);
   const [showOrderConfirm, setShowOrderConfirm] = useState<Order | null>(null);
   const [scanFlash, setScanFlash] = useState<string | null>(null);
+  const [filterCat, setFilterCat] = useState('');
+  const [editCategory, setEditCategory] = useState<Category | null | undefined>(undefined);
   const searchRef = useRef<HTMLInputElement>(null);
 
   const filtered = useMemo(() => {
     const q = search.toLowerCase().trim();
-    if (!q) return products;
-    return products.filter(
-      (p) =>
-        p.name.toLowerCase().includes(q) ||
-        (p.brand && p.brand.toLowerCase().includes(q)) ||
-        (p.barcode && p.barcode.toLowerCase().includes(q))
-    );
-  }, [products, search]);
+    let list = products;
+    if (q) {
+      list = list.filter(
+        (p) =>
+          p.name.toLowerCase().includes(q) ||
+          (p.brand && p.brand.toLowerCase().includes(q)) ||
+          (p.barcode && p.barcode.toLowerCase().includes(q))
+      );
+    }
+    if (filterCat) list = list.filter((p) => p.category === filterCat);
+    return list;
+  }, [products, search, filterCat]);
 
   const subtotal = useMemo(
     () => round2(cart.reduce((s, c) => s + c.price * c.qty, 0)),
@@ -212,6 +225,44 @@ export default function POSView() {
               </div>
             )}
           </div>
+
+          <div className="mt-3 flex gap-2 flex-wrap items-center">
+            <button
+              onClick={() => setFilterCat('')}
+              className={`px-3 py-1.5 rounded-full text-xs font-semibold border-2 transition-all ${
+                filterCat === '' ? 'bg-indigo-500 text-white border-indigo-500' : 'bg-white text-slate-600 border-slate-200 hover:border-indigo-300'
+              }`}
+            >
+              Todos
+            </button>
+            {categories.map((c) => (
+              <button
+                key={c.name}
+                onClick={() => setFilterCat(c.name)}
+                onContextMenu={(e) => {
+                  if (!isOwner) return;
+                  e.preventDefault();
+                  setEditCategory(c);
+                }}
+                title={isOwner ? 'Click izq: filtrar · Click der: editar' : undefined}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold border-2 transition-all ${
+                  filterCat === c.name ? 'bg-indigo-500 text-white border-indigo-500' : 'bg-white text-slate-600 border-slate-200 hover:border-indigo-300'
+                }`}
+              >
+                <CategoryIcon category={c.name} size={11} />
+                {c.name}
+              </button>
+            ))}
+            {isOwner && (
+              <button
+                onClick={() => setEditCategory(null)}
+                className="flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-semibold border-2 border-dashed border-indigo-300 text-indigo-500 hover:bg-indigo-50 transition-all"
+                title="Crear nueva categoría"
+              >
+                <Plus size={11} /> Categoría
+              </button>
+            )}
+          </div>
         </div>
 
         <div className="grid grid-cols-[repeat(auto-fill,minmax(168px,1fr))] gap-2.5 overflow-y-auto flex-1 pb-2 pr-1 content-start">
@@ -293,6 +344,10 @@ export default function POSView() {
           order={showOrderConfirm}
           onClose={() => setShowOrderConfirm(null)}
         />
+      )}
+
+      {editCategory !== undefined && (
+        <CategoryModal category={editCategory} onClose={() => setEditCategory(undefined)} />
       )}
     </div>
   );

@@ -1,6 +1,7 @@
 import type {
   AppNotification,
   AppSettings,
+  Category,
   DashboardData,
   Driver,
   Expense,
@@ -209,6 +210,15 @@ export const api = {
   dashboard: {
     get: (params: { from?: string; to?: string } = {}) =>
       request<DashboardData>('/api/dashboard', { query: params }),
+  },
+  categories: {
+    list: () => request<Category[]>('/api/categories'),
+    create: (body: { name: string; icon: string; sort_order?: number }) =>
+      request<Category>('/api/categories', { method: 'POST', body }),
+    update: (name: string, body: Partial<{ icon: string; sort_order: number }>) =>
+      request<Category>(`/api/categories/${encodeURIComponent(name)}`, { method: 'PUT', body }),
+    remove: (name: string) =>
+      request<{ ok: boolean }>(`/api/categories/${encodeURIComponent(name)}`, { method: 'DELETE' }),
   },
   settingsUpdate: (body: Partial<AppSettings>) =>
     request<{ ok: boolean }>('/api/settings', { method: 'PUT', body }),

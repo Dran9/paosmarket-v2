@@ -174,6 +174,13 @@ export interface AppSettings {
   lowStockThreshold: number;
 }
 
+export interface Category {
+  name: string;
+  icon: string;
+  sortOrder: number;
+  active?: boolean;
+}
+
 export interface Expense {
   id: string;
   date: string;
