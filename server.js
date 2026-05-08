@@ -8,6 +8,7 @@ import { setupAuth } from './server/auth.js';
 import authRoutes from './server/routes/auth.js';
 import productRoutes from './server/routes/products.js';
 import transactionRoutes from './server/routes/transactions.js';
+import settingsRoutes from './server/routes/settings.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -33,6 +34,7 @@ async function start() {
   await app.register(authRoutes, { prefix: '/api/auth' });
   await app.register(productRoutes, { prefix: '/api/products' });
   await app.register(transactionRoutes, { prefix: '/api/transactions' });
+  await app.register(settingsRoutes, { prefix: '/api/settings' });
 
   if (fs.existsSync(distDir)) {
     await app.register(fastifyStatic, { root: distDir, prefix: '/' });

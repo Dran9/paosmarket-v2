@@ -15,6 +15,22 @@ const loginSchema = {
 };
 
 export default async function authRoutes(app) {
+  app.get('/users', async () => {
+    const rows = await query(
+      `SELECT id, name, role, avatar, color
+         FROM users
+        WHERE active = 1
+        ORDER BY role DESC, name ASC`
+    );
+    return rows.map((r) => ({
+      id: r.id,
+      name: r.name,
+      role: r.role,
+      avatar: r.avatar || '',
+      color: r.color || '#6366f1',
+    }));
+  });
+
   app.post('/login', { schema: loginSchema }, async (req, reply) => {
     const { id, password } = req.body;
 
