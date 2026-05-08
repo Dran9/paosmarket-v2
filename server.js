@@ -4,6 +4,8 @@ import path from 'path';
 import fs from 'fs';
 import { fileURLToPath } from 'url';
 import { initDB, pingDBStatus } from './server/db.js';
+import { setupAuth } from './server/auth.js';
+import authRoutes from './server/routes/auth.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -25,6 +27,9 @@ app.get('/api/health', async () => {
 });
 
 async function start() {
+  await setupAuth(app);
+  await app.register(authRoutes, { prefix: '/api/auth' });
+
   if (fs.existsSync(distDir)) {
     await app.register(fastifyStatic, { root: distDir, prefix: '/' });
     app.setNotFoundHandler((request, reply) => {
