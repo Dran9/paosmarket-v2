@@ -438,10 +438,19 @@ pos-paolitas-v2/
     - **Excel import 1 request**: InventoryView ya no hace N requests individuales.
       Parsea el Excel localmente, filtra filas sin nombre/categoría, y llama
       /api/products/bulk una sola vez.
-    - **Service Worker**: no implementado aún (queda como tarea futura si Daniel
-      lo pide).
     - **useBulkImportProducts** hook en queries.ts, patrón igual a los otros hooks
       de producto (fetch directo + JWT de localStorage).
+- **2026-05-08 — UX ajustes (commit e8c9468).** Validado en producción.
+    - **Precio card POS**: text-xl (20px) → text-[22px] font-black.
+    - **Búsqueda POS**: input text-2xl → text-[22px].
+    - **Header eliminado**: se quitó la barra superior blanca (header) que solo
+      contenía la campana. El main ahora ocupa toda la altura disponible.
+    - **Campana en sidebar**: BellMenu movido al sidebar encima de "Ajustes".
+      BellMenu tiene prop `sidebar` (default false):
+      · sidebar=true → botón fila completa estilo nav (Bell size=14, badge 8px),
+        dropdown abre a la derecha del sidebar (left-full ml-2 bottom-0).
+      · sidebar=false → botón icono cuadrado original (por si se reutiliza en header).
+      Para vendedoras (sin Ajustes visible), la campana aparece al final del nav.
 
 ---
 
