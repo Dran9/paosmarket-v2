@@ -1,7 +1,9 @@
 import type {
   AppNotification,
   AppSettings,
+  DashboardData,
   Driver,
+  Expense,
   LoginUser,
   Order,
   OrderStatus,
@@ -173,4 +175,35 @@ export const api = {
     readAll: () =>
       request<{ ok: boolean }>('/api/notifications/read-all', { method: 'PUT' }),
   },
+  users: {
+    list: () => request<User[]>('/api/users'),
+    create: (body: {
+      id: string; name: string; password: string; role: 'owner' | 'vendedora';
+      avatar?: string; color?: string; firstName?: string | null;
+    }) => request<User>('/api/users', { method: 'POST', body }),
+    update: (id: string, body: Partial<{
+      name: string; password: string; role: 'owner' | 'vendedora';
+      avatar: string; color: string; firstName: string | null;
+      lastName: string | null; phone: string | null;
+      documentNumber: string | null; address: string | null;
+    }>) => request<User>(`/api/users/${id}`, { method: 'PUT', body }),
+    remove: (id: string) => request<{ ok: boolean }>(`/api/users/${id}`, { method: 'DELETE' }),
+  },
+  expenses: {
+    list: (params: { from?: string; to?: string } = {}) =>
+      request<Expense[]>('/api/expenses', { query: params }),
+    create: (body: {
+      date: string; category: string; description: string; amount: number;
+      notification_id?: number | null;
+    }) => request<Expense>('/api/expenses', { method: 'POST', body }),
+    update: (id: string, body: Partial<{ date: string; category: string; description: string; amount: number }>) =>
+      request<Expense>(`/api/expenses/${id}`, { method: 'PUT', body }),
+    remove: (id: string) => request<{ ok: boolean }>(`/api/expenses/${id}`, { method: 'DELETE' }),
+  },
+  dashboard: {
+    get: (params: { from?: string; to?: string } = {}) =>
+      request<DashboardData>('/api/dashboard', { query: params }),
+  },
+  settingsUpdate: (body: Partial<AppSettings>) =>
+    request<{ ok: boolean }>('/api/settings', { method: 'PUT', body }),
 };

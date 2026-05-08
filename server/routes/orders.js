@@ -435,8 +435,7 @@ export default async function orderRoutes(app) {
 
         await conn.commit();
 
-        // Notificación de "problema" se crea fuera de la transacción para
-        // no bloquear el commit principal si Telegram tarda.
+        // Notificaciones fuera de la transacción para no bloquear el commit.
         if (status === 'problema') {
           await createNotification({
             type: 'order_problem',
@@ -447,6 +446,17 @@ export default async function orderRoutes(app) {
             refId: orderId,
             telegram: true,
             log: req.log,
+          });
+        }
+
+        if (status === 'devuelto' && transport_settled === 'tienda' && Number(order.transport_cost) > 0) {
+          await createNotification({
+            type: 'transport_loss',
+            severity: 'warning',
+            title: `Transporte a cargo de la tienda: ${orderId}`,
+            body: `Pedido devuelto. Registrar en Contabilidad → Gastos: Bs ${Number(order.transport_cost).toFixed(2)} (categoría "transporte").`,
+            refType: 'order',
+            refId: orderId,
           });
         }
 

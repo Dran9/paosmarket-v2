@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from './api';
-import type { Order } from './types';
+import type { Expense, Order, User } from './types';
 
 export const useLoginUsers = () =>
   useQuery({
@@ -142,5 +142,189 @@ export const useReadAllNotifications = () => {
   return useMutation({
     mutationFn: api.notifications.readAll,
     onSuccess: () => qc.invalidateQueries({ queryKey: ['notifications'] }),
+  });
+};
+
+export const useUsers = () =>
+  useQuery({
+    queryKey: ['users'],
+    queryFn: () => api.users.list(),
+    staleTime: 60_000,
+  });
+
+export const useCreateUser = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: api.users.create,
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['users'] }),
+  });
+};
+
+export const useUpdateUser = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, body }: { id: string; body: Parameters<typeof api.users.update>[1] }) =>
+      api.users.update(id, body),
+    onMutate: async ({ id, body }) => {
+      await qc.cancelQueries({ queryKey: ['users'] });
+      const previous = qc.getQueryData<User[]>(['users']);
+      qc.setQueryData<User[]>(['users'], (old) =>
+        old?.map((u) => (u.id === id ? { ...u, ...body } : u))
+      );
+      return { previous };
+    },
+    onError: (_err, _vars, ctx) => {
+      if (ctx?.previous) qc.setQueryData(['users'], ctx.previous);
+    },
+    onSettled: () => qc.invalidateQueries({ queryKey: ['users'] }),
+  });
+};
+
+export const useDeleteUser = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: api.users.remove,
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['users'] }),
+  });
+};
+
+export const useExpenses = (params: { from?: string; to?: string } = {}) =>
+  useQuery({
+    queryKey: ['expenses', params],
+    queryFn: () => api.expenses.list(params),
+    staleTime: 30_000,
+  });
+
+export const useCreateExpense = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: api.expenses.create,
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['expenses'] });
+      qc.invalidateQueries({ queryKey: ['dashboard'] });
+      qc.invalidateQueries({ queryKey: ['notifications'] });
+    },
+  });
+};
+
+export const useUpdateExpense = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, body }: { id: string; body: Parameters<typeof api.expenses.update>[1] }) =>
+      api.expenses.update(id, body),
+    onMutate: async ({ id, body }) => {
+      await qc.cancelQueries({ queryKey: ['expenses'] });
+      const keys = qc.getQueriesData<Expense[]>({ queryKey: ['expenses'] });
+      for (const [key, data] of keys) {
+        qc.setQueryData<Expense[]>(key, data?.map((e) => (e.id === id ? { ...e, ...body } : e)));
+      }
+      return { keys };
+    },
+    onSettled: () => {
+      qc.invalidateQueries({ queryKey: ['expenses'] });
+      qc.invalidateQueries({ queryKey: ['dashboard'] });
+    },
+  });
+};
+
+export const useDeleteExpense = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: api.expenses.remove,
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['expenses'] });
+      qc.invalidateQueries({ queryKey: ['dashboard'] });
+    },
+  });
+};
+
+export const useDashboard = (params: { from?: string; to?: string } = {}) =>
+  useQuery({
+    queryKey: ['dashboard', params],
+    queryFn: () => api.dashboard.get(params),
+    staleTime: 60_000,
+  });
+
+export const useUpdateSettings = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: api.settingsUpdate,
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['settings'] }),
+  });
+};
+
+export const useCreateProduct = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (body: {
+      name: string; category: string; barcode?: string; price: number;
+      cost: number; stock: number; unit: string;
+    }) => fetch('/api/products', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(localStorage.getItem('pos-jwt') ? { Authorization: `Bearer ${localStorage.getItem('pos-jwt')}` } : {}),
+      },
+      body: JSON.stringify(body),
+    }).then(async (r) => {
+      if (!r.ok) { const e = await r.json(); throw new Error(e.error || 'Error'); }
+      return r.json();
+    }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['products'] }),
+  });
+};
+
+export const useUpdateProduct = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, body }: { id: number; body: Partial<{ name: string; category: string; barcode: string; price: number; cost: number; stock: number; unit: string }> }) =>
+      fetch(`/api/products/${id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(localStorage.getItem('pos-jwt') ? { Authorization: `Bearer ${localStorage.getItem('pos-jwt')}` } : {}),
+        },
+        body: JSON.stringify(body),
+      }).then(async (r) => {
+        if (!r.ok) { const e = await r.json(); throw new Error(e.error || 'Error'); }
+        return r.json();
+      }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['products'] }),
+  });
+};
+
+export const useDeleteProduct = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: number) =>
+      fetch(`/api/products/${id}`, {
+        method: 'DELETE',
+        headers: {
+          ...(localStorage.getItem('pos-jwt') ? { Authorization: `Bearer ${localStorage.getItem('pos-jwt')}` } : {}),
+        },
+      }).then(async (r) => {
+        if (!r.ok) { const e = await r.json(); throw new Error(e.error || 'Error'); }
+        return r.json();
+      }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['products'] }),
+  });
+};
+
+export const useStockAdjust = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, qty }: { id: number; qty: number }) =>
+      fetch(`/api/products/${id}/stock`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(localStorage.getItem('pos-jwt') ? { Authorization: `Bearer ${localStorage.getItem('pos-jwt')}` } : {}),
+        },
+        body: JSON.stringify({ qty }),
+      }).then(async (r) => {
+        if (!r.ok) { const e = await r.json(); throw new Error(e.error || 'Error'); }
+        return r.json();
+      }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['products'] }),
   });
 };

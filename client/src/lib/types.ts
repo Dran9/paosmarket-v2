@@ -171,6 +171,29 @@ export interface AppSettings {
   lowStockThreshold: number;
 }
 
+export interface Expense {
+  id: string;
+  date: string;
+  category: string;
+  description: string;
+  amount: number;
+}
+
+export interface DashboardData {
+  totalRevenue: number;
+  totalCOGS: number;
+  grossProfit: number;
+  totalTax: number;
+  totalExpenses: number;
+  netProfit: number;
+  txCount: number;
+  byUser: { userId: string; name: string; count: number; revenue: number }[];
+  byMethod: { method: string; count: number; total: number }[];
+  bySaleType: { saleType: string; count: number; total: number }[];
+  topProducts: { productId: number; name: string; qty: number; revenue: number; profit: number }[];
+  lowStock: { id: number; name: string; stock: number; unit: string; threshold: number }[];
+}
+
 export type ViewKey =
   | 'pos'
   | 'sales'

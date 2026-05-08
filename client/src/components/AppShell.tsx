@@ -16,7 +16,10 @@ import { api } from '@/lib/api';
 import POSView from '@/views/POSView';
 import SalesView from '@/views/SalesView';
 import OrdersView from '@/views/OrdersView';
-import Placeholder from '@/views/Placeholder';
+import InventoryView from '@/views/InventoryView';
+import DashboardView from '@/views/DashboardView';
+import AccountingView from '@/views/AccountingView';
+import SettingsView from '@/views/SettingsView';
 import BellMenu from '@/components/BellMenu';
 import type { ViewKey } from '@/lib/types';
 
@@ -60,10 +63,10 @@ export default function AppShell() {
     pos: <POSView />,
     sales: <SalesView />,
     orders: <OrdersView />,
-    dashboard: <Placeholder title="Dashboard" icon={BarChart3} />,
-    accounting: <Placeholder title="Contabilidad" icon={Calculator} />,
-    inventory: <Placeholder title="Inventario" icon={Package} />,
-    settings: <Placeholder title="Ajustes" icon={Settings} />,
+    dashboard: <DashboardView />,
+    accounting: <AccountingView />,
+    inventory: <InventoryView />,
+    settings: <SettingsView />,
   };
 
   const activeKey: ViewKey = visibleNav.some((n) => n.key === view) ? view : 'pos';
