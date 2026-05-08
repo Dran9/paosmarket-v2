@@ -60,7 +60,10 @@ export async function setupAuth(app) {
     const raw = rows[0].permissions;
     if (Array.isArray(raw)) perms = raw;
     else if (typeof raw === 'string' && raw) {
-      try { perms = JSON.parse(raw); } catch { perms = []; }
+      try {
+        const parsed = JSON.parse(raw);
+        perms = Array.isArray(parsed) ? parsed : [];
+      } catch { perms = []; }
     }
     if (!required.some((k) => perms.includes(k))) {
       return reply.code(403).send({ error: 'Sin permiso para esta acción' });
@@ -74,7 +77,10 @@ export function userToDTO(row) {
   if (row.permissions !== undefined && row.permissions !== null) {
     if (Array.isArray(row.permissions)) permissions = row.permissions;
     else if (typeof row.permissions === 'string' && row.permissions) {
-      try { permissions = JSON.parse(row.permissions); } catch { permissions = []; }
+      try {
+        const parsed = JSON.parse(row.permissions);
+        permissions = Array.isArray(parsed) ? parsed : [];
+      } catch { permissions = []; }
     }
   }
   return {

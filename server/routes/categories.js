@@ -1,5 +1,16 @@
 import { query } from '../db.js';
 
+// Catálogo de iconos válidos (debe coincidir con client/src/lib/icons.ts ICON_CATALOG)
+const VALID_ICONS = new Set([
+  'Apple','Banana','Bath','Beef','Beer','Box','Boxes','Cake','Candy','Carrot',
+  'ChefHat','Cherry','Citrus','Coffee','Cookie','Croissant','Dessert','Drumstick',
+  'Egg','Fish','Flame','Flower','Gift','GlassWater','Grape','Ham','Heart',
+  'IceCream','Leaf','Lollipop','Milk','Package','PawPrint','Pill','Pizza',
+  'Popcorn','Salad','Sandwich','ShoppingBag','ShoppingBasket','Shirt','Soup',
+  'Sparkles','SprayCan','Stethoscope','Tag','Tags','Truck','Utensils',
+  'WashingMachine','Wheat','Wine',
+]);
+
 const createSchema = {
   body: {
     type: 'object',
@@ -48,6 +59,7 @@ export default async function categoryRoutes(app) {
       const { name, icon, sort_order = 100 } = req.body;
       const trimmed = name.trim();
       if (!trimmed) return reply.code(400).send({ error: 'Nombre vacío' });
+      if (!VALID_ICONS.has(icon)) return reply.code(400).send({ error: 'Icono inválido' });
       const existing = await query(
         'SELECT name FROM categories WHERE LOWER(name) = LOWER(?)',
         [trimmed]
@@ -68,11 +80,16 @@ export default async function categoryRoutes(app) {
     '/:name',
     { schema: updateSchema, preHandler: [app.requireView('inventory')] },
     async (req, reply) => {
-      const name = decodeURIComponent(req.params.name);
+      let name;
+      try { name = decodeURIComponent(req.params.name); }
+      catch { return reply.code(400).send({ error: 'Nombre malformado' }); }
       const fields = req.body;
       const keys = Object.keys(fields);
       if (!keys.length) {
         return reply.code(400).send({ error: 'Nada que actualizar' });
+      }
+      if (fields.icon !== undefined && !VALID_ICONS.has(fields.icon)) {
+        return reply.code(400).send({ error: 'Icono inválido' });
       }
       const set = keys.map((k) => `\`${k}\` = ?`).join(', ');
       const values = keys.map((k) => fields[k]);
@@ -93,7 +110,9 @@ export default async function categoryRoutes(app) {
     '/:name',
     { preHandler: [app.requireView('inventory')] },
     async (req, reply) => {
-      const name = decodeURIComponent(req.params.name);
+      let name;
+      try { name = decodeURIComponent(req.params.name); }
+      catch { return reply.code(400).send({ error: 'Nombre malformado' }); }
       const inUse = await query(
         'SELECT COUNT(*) AS c FROM products WHERE category = ? AND active = 1',
         [name]

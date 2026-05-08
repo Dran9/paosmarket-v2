@@ -18,6 +18,8 @@ const createSchema = {
       firstName: { type: ['string', 'null'], maxLength: 100 },
       lastName: { type: ['string', 'null'], maxLength: 100 },
       phone: { type: ['string', 'null'], maxLength: 30 },
+      documentNumber: { type: ['string', 'null'], maxLength: 30 },
+      address: { type: ['string', 'null'], maxLength: 255 },
       permissions: { type: 'array', items: { type: 'string', maxLength: 30 }, maxItems: 20 },
     },
     additionalProperties: false,

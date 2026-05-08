@@ -3,7 +3,7 @@ import { useForm } from 'react-hook-form';
 import toast from 'react-hot-toast';
 import {
   Building2, SlidersHorizontal, Users, Truck, Plus, Pencil, Trash2, Eye, EyeOff,
-  ShoppingCart, Receipt, BarChart3, Calculator, Package, Settings as SettingsIcon,
+  ShoppingCart, Receipt, BarChart3, Calculator, Package,
 } from 'lucide-react';
 import {
   useUsers, useCreateUser, useUpdateUser, useDeleteUser, useUpdateSettings,
@@ -39,7 +39,6 @@ const PERMISSION_OPTIONS: { key: string; label: string; icon: any; baseline?: bo
   { key: 'inventory', label: 'Inventario', icon: Package },
   { key: 'dashboard', label: 'Dashboard', icon: BarChart3 },
   { key: 'accounting', label: 'Contabilidad', icon: Calculator },
-  { key: 'settings', label: 'Ajustes', icon: SettingsIcon },
 ];
 
 function UserModal({ user, onClose }: { user: User | null; onClose: () => void }) {

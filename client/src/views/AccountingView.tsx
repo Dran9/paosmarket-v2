@@ -70,9 +70,11 @@ function ExpenseModal({
   const updateExpense = useUpdateExpense();
   const isEdit = !!expense;
 
-  const defaultDate = expense
-    ? new Date(expense.date).toISOString().slice(0, 16)
-    : new Date().toISOString().slice(0, 16);
+  const formatLocal = (d: Date) => {
+    const pad = (n: number) => String(n).padStart(2, '0');
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  };
+  const defaultDate = expense ? formatLocal(new Date(expense.date)) : formatLocal(new Date());
 
   const { register, handleSubmit, formState: { errors } } = useForm<ExpenseForm>({
     defaultValues: expense

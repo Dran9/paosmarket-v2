@@ -109,9 +109,11 @@ export default function POSView() {
     window.setTimeout(() => setScanFlash(null), 900);
   };
 
-  const tryAddByBarcode = (raw: string): boolean => {
+  const tryAddByBarcode = (raw: string, strict: boolean): boolean => {
     const q = raw.trim();
     if (!q) return false;
+    // Strict mode (auto-add): solo dígitos y >=5 chars para evitar false positives al tipear
+    if (strict && (q.length < 5 || !/^\d+$/.test(q))) return false;
     const exact = products.find((p) => p.barcode && p.barcode === q);
     if (exact) {
       if (exact.stock <= 0) {
@@ -125,28 +127,28 @@ export default function POSView() {
     return false;
   };
 
-  // Scanner: match exacto de barcode auto-agrega al carrito (sin Enter)
+  // Scanner: match exacto de barcode auto-agrega al carrito (sin Enter).
+  // Solo dispara con dígitos puros >=5 para no interferir con búsqueda manual.
   useEffect(() => {
     if (!search.trim()) return;
     if (anyModalOpen) return;
-    if (tryAddByBarcode(search)) {
+    if (tryAddByBarcode(search, true)) {
       setSearch('');
       searchRef.current?.focus();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [search, products, anyModalOpen]);
 
-  // Auto-focus permanente del search (excepto si hay modal abierto o el usuario
-  // está editando otro input/cantidad del carrito).
+  // Auto-focus periódico del search para mantener listo el scanner.
+  // No roba foco si hay otro input/textarea/select activo (incluye cantidades del carrito).
   useEffect(() => {
     if (anyModalOpen) return;
     const refocus = () => {
       const tag = (document.activeElement as HTMLElement)?.tagName;
-      if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || tag === 'BUTTON') return;
+      if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
       searchRef.current?.focus();
     };
-    refocus();
-    const id = window.setInterval(refocus, 1500);
+    const id = window.setInterval(refocus, 2000);
     return () => window.clearInterval(id);
   }, [anyModalOpen]);
 
@@ -155,7 +157,7 @@ export default function POSView() {
     e.preventDefault();
     const q = search.trim();
     if (!q) return;
-    if (tryAddByBarcode(search)) {
+    if (tryAddByBarcode(search, false)) {
       setSearch('');
       return;
     }

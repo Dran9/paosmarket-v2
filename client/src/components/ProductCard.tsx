@@ -9,8 +9,9 @@ interface Props {
 
 export default function ProductCard({ product, onClick }: Props) {
   const { settings } = useStore();
+  const threshold = settings.lowStockThreshold ?? 5;
   const out = product.stock <= 0;
-  const low = product.stock <= settings.lowStockThreshold;
+  const low = product.stock <= threshold;
 
   return (
     <button

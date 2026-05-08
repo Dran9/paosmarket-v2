@@ -114,7 +114,8 @@ export default async function dashboardRoutes(app) {
     const thresholdRows = await query(
       'SELECT `value` FROM settings WHERE `key` = "lowStockThreshold"'
     );
-    const threshold = thresholdRows.length ? Number(thresholdRows[0].value) || 5 : 5;
+    const parsedThreshold = thresholdRows.length ? Number(thresholdRows[0].value) : NaN;
+    const threshold = Number.isFinite(parsedThreshold) ? parsedThreshold : 5;
 
     const lowStockRows = await query(
       `SELECT id, name, stock, unit

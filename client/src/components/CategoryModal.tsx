@@ -3,6 +3,7 @@ import toast from 'react-hot-toast';
 import Modal from '@/components/Modal';
 import IconPicker from '@/components/IconPicker';
 import { useCreateCategory, useUpdateCategory, useDeleteCategory } from '@/lib/queries';
+import { ICON_CATALOG } from '@/lib/icons';
 import type { Category } from '@/lib/types';
 import { Trash2 } from 'lucide-react';
 
@@ -14,7 +15,9 @@ interface Props {
 export default function CategoryModal({ category, onClose }: Props) {
   const isEdit = !!category;
   const [name, setName] = useState(category?.name ?? '');
-  const [icon, setIcon] = useState(category?.icon ?? 'Package');
+  // Si el icono guardado ya no existe en el catálogo, fallback a Package
+  const initialIcon = category?.icon && ICON_CATALOG[category.icon] ? category.icon : 'Package';
+  const [icon, setIcon] = useState(initialIcon);
 
   const createCat = useCreateCategory();
   const updateCat = useUpdateCategory();

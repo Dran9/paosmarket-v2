@@ -27,6 +27,7 @@ de `PLAN.md`. No reescribas este archivo salvo en la sección final
 | 6 | Backend completo + 4 vistas owner-only (Inventory/Dashboard/Accounting/Settings) | `07c5bfa` |
 | 6.3 | WhatsApp Business + drivers CRUD + code splitting (540KB→111KB) | `6ebeb56` |
 | 6.4 | UX polish: DeliveryModal compacto sin choferes, ProductCard -15% | `<actual>` |
+| 7.0 | MVP polish para venta: Modal fix, scanner, AccountingView ventas, badge pedidos, categorías editables, permisos por usuario, audit + bugfixes | `81377df` + bugfix commit |
 
 ---
 
@@ -97,11 +98,22 @@ de `PLAN.md`. No reescribas este archivo salvo en la sección final
 
 ### Productos (`server/routes/products.js`)
 - `GET /api/products` (auth) → lista active=1, ordenada por nombre.
-- `POST /api/products` (owner) → crea, retorna 201 con DTO.
-- `PUT /api/products/:id` (owner) → update parcial.
-- `DELETE /api/products/:id` (owner) → soft delete (active=0).
-- `POST /api/products/:id/stock` (owner) body `{qty}` → delta de stock,
-  permite negativo intencional.
+- `POST /api/products` (`requireView('inventory')`) → crea, retorna 201 con DTO.
+- `PUT /api/products/:id` (`requireView('inventory')`) → update parcial.
+- `DELETE /api/products/:id` (`requireView('inventory')`) → soft delete (active=0).
+- `POST /api/products/:id/stock` (`requireView('inventory')`) body `{qty}` → delta de stock,
+  permite negativo intencional, rechaza qty=0.
+- `POST /api/products/bulk` (`requireView('inventory')`) → import masivo.
+
+### Categorías (`server/routes/categories.js`) — fase 7
+- `GET /api/categories` (auth) → lista active=1, ordenada por sort_order.
+- `POST /api/categories` (`requireView('inventory')`) body `{name, icon, sort_order?}`.
+  Valida que `icon` esté en `VALID_ICONS` (51 iconos lucide curados, debe coincidir
+  con `client/src/lib/icons.ts ICON_CATALOG`). 409 si nombre duplicado.
+- `PUT /api/categories/:name` (`requireView('inventory')`) → cambia icon o sort_order.
+  No se permite renombrar (los productos referencian por nombre).
+- `DELETE /api/categories/:name` (`requireView('inventory')`) → soft delete. 409 si
+  hay productos activos usando esa categoría.
 
 ### Transacciones (`server/routes/transactions.js`)
 - `POST /api/transactions` (auth) — ATÓMICO con SELECT...FOR UPDATE.
@@ -270,11 +282,16 @@ pos-paolitas-v2/
 │   │   ├── notifications.js
 │   │   ├── orders.js               ← crea/edita/cambia status con lógica completa
 │   │   ├── products.js
+│   │   ├── categories.js       ← CRUD categorías + IconPicker (fase 7)
 │   │   ├── settings.js
 │   │   └── transactions.js
 │   ├── migrations/
-│   │   ├── 001_init.sql            ← schema base (10 tablas)
-│   │   └── 002_orders_notifications.sql  ← status nuevos, columnas y notifications
+│   │   ├── 001_init.sql                    ← schema base (10 tablas)
+│   │   ├── 002_orders_notifications.sql    ← status nuevos, columnas y notifications
+│   │   ├── 003_drivers_whatsapp.sql        ← drivers.whatsapp_id + drivers.active
+│   │   ├── 004_products_brand.sql          ← products.brand
+│   │   ├── 005_categories.sql              ← tabla categories + seed (fase 7)
+│   │   └── 006_user_permissions.sql        ← users.permissions JSON (fase 7)
 │   ├── auth.js
 │   ├── db.js
 │   ├── notifications.js            ← createNotification + lowStockNotifications
@@ -352,6 +369,106 @@ pos-paolitas-v2/
 
 <!-- Si tomas una decisión no obvia o dejas algo a medias, anótalo
      en bullets. No borres lo de arriba. -->
+
+- **2026-05-08 — Fase 7 MVP polish (commits 04ba550 → bugfix actual).** Polish
+  general previo a la presentación de venta. Cambios destacados:
+    - **Modal.tsx**: prop `open` ahora es opcional con default `true`. Fix:
+      InventoryView/SettingsView/AccountingView no la pasaban → modales
+      retornaban `null` siempre. Crear/editar producto, ajustar stock,
+      crear/editar empleado, chofer, gasto — todo estaba roto.
+    - **AccountingView**: reescrita. Ya no es solo IVA + P&L + tabla de gastos.
+      Ahora tiene tabs "Ventas | Gastos" debajo del resumen. Tab Ventas:
+      tabla completa de SaleRow con search por producto/ticket/categoría,
+      filtro de categoría, filtro Tienda/Delivery, ordenamiento (fecha asc/desc,
+      A-Z producto, Z-A producto, mayor monto, menor monto). Tab Gastos:
+      mismo patrón con filtros equivalentes.
+    - **POSView barcode scanner**:
+      · Auto-focus permanente del input de búsqueda (refocus interval 2s,
+        no roba foco si hay otro INPUT/TEXTAREA/SELECT activo).
+      · Match exacto de barcode auto-agrega al carrito sin Enter, pero solo
+        en modo "estricto": dígitos puros y >=5 chars. Esto evita falsos
+        positivos durante búsqueda manual por nombre.
+      · Enter como respaldo: agrega si hay 1 sólo resultado filtrado, o avisa.
+      · Indicador "Scanner activo" + flash verde al agregar.
+      · Búsqueda matchea ahora también por marca.
+    - **ProductCard**: pill de categoría en esquina superior izquierda con icono.
+      `lowStockThreshold` con fallback `?? 5` para stores persistidos viejos.
+    - **AppShell sidebar**: badge amarillo redondo con contador de pedidos
+      pendientes (status no terminal: pendiente/preparando/en_camino/problema)
+      junto al item Pedidos.
+    - **Fix BusinessTab**: el componente `F` estaba definido dentro de
+      `BusinessTab`, así que cada keystroke creaba una función nueva, React
+      desmontaba/remontaba el input → se perdía el foco después de cada letra.
+      Movido a `TextField` a nivel de módulo. Verificado que `GeneralTab`,
+      `EmpleadosTab`, `ChoferesTab` y todos los Modales ya tenían sus
+      subcomponentes a nivel de módulo. Ningún otro lugar tenía este bug.
+- **Categorías editables (fase 7)**:
+    - Migración 005 crea tabla `categories(name PK, icon, sort_order, active)`,
+      seedea las 11 categorías existentes con sus iconos lucide.
+    - Frontend tiene `client/src/lib/icons.ts` con `ICON_CATALOG` (51 iconos
+      curados), `iconFor()`, `lookupIcon()`, `suggestIcons()` (sugerencias por
+      keyword: "lácteos" → Milk/GlassWater/IceCream/Cake/Egg, etc).
+    - `IconPicker` component muestra sugerencias verdes según el nombre que
+      escribe + grid completo de los 51 iconos buscables.
+    - `CategoryModal`: name + IconPicker. Bloquea borrar si hay productos
+      usando la categoría. Owner-only para crear/editar/borrar (gated por
+      `requireView('inventory')` en el backend).
+    - POSView: pills de categoría debajo de search (incluye "Todos" + cada
+      categoría con icono). Botón borde punteado "+ Categoría" (owner-only).
+      Click derecho sobre una pill abre editar.
+    - InventoryView usa `useCategories()` para el dropdown del ProductModal
+      (antes hardcoded array de 11).
+    - `CategoryIcon` resuelve el icono dinámicamente usando `useCategories()`.
+      Si la query aún no cargó, fallback a `FALLBACK_MAP` estático.
+- **Permisos por usuario (fase 7)**:
+    - Migración 006 agrega columna `permissions JSON DEFAULT NULL` en users.
+    - Decorator `app.requireView(viewKey | viewKey[])`: pasa si user es owner
+      o si tiene esa key en su array de `permissions`. Lee permissions de DB
+      (no de JWT) para que cambios apliquen sin re-login.
+    - Rutas migradas de `requireOwner` a `requireView`:
+      · products CRUD/bulk/stock + categories CRUD → `'inventory'`
+      · expenses CRUD + GET → `'accounting'`
+      · dashboard GET → `['dashboard','accounting']` (Accounting consume dashboard)
+    - Rutas que **siguen** owner-only (sensibles): users CRUD, drivers CRUD,
+      settings PUT.
+    - `users.js` POST/PUT acepta y devuelve `permissions[]`. Cambiar permisos
+      requiere owner.
+    - `userToDTO` ahora incluye `permissions` parseado defensivamente.
+    - Frontend: `User.permissions?: string[]`. UserModal con sección
+      "Privilegios — páginas que puede ver": 6 checkboxes (POS/Ventas/Pedidos
+      como baseline inmutable, Inventario/Dashboard/Contabilidad opcionales).
+      `settings` NO está en la lista — es admin-only conceptualmente; granted
+      en el modal sería confuso (settings PUT y users CRUD son owner-only).
+    - AppShell filtra `visibleNav` por isOwner OR `permissions.includes(viewKey)`.
+- **Bugfixes del audit pre-venta (fase 7)**:
+    - **ExpenseModal timezone**: `toISOString()` desplazaba la fecha a UTC en
+      el datetime-local input. Editar un gasto bolivia (UTC-4) lo movía
+      4 horas. Reemplazado por formatter local manual.
+    - **Scanner over-eager**: el auto-add disparaba con cualquier match exacto,
+      incluyendo barcodes cortos (3-4 dígitos) durante búsqueda manual.
+      Ahora `tryAddByBarcode(raw, strict=true)` exige dígitos puros + >=5 chars
+      para auto-add. Enter handler usa modo loose para aceptar cualquier match.
+    - **Auto-focus**: dropeado `BUTTON` de los tags protegidos (un botón
+      enfocado debe ceder a search). Eliminado el `refocus()` síncrono del
+      effect (sólo corre en interval) para no robar foco al cerrar modales.
+      Interval pasó de 1500ms a 2000ms.
+    - **requireView JSON parse**: defensivo contra `JSON.parse('null')` que
+      retornaría `null` y `null.includes` tiraría 500. Mismo fix en `userToDTO`.
+    - **Orders PUT terminal lock**: `PUT /api/orders/:id` rechaza con 409 si
+      el status es entregado/devuelto/cancelado. Antes podía editar montos
+      de un pedido entregado y desincronizar la transacción asociada.
+    - **Categories icon validation**: backend `categories.js` valida que el
+      `icon` esté en `VALID_ICONS` (set de 51). Frontend `CategoryModal`
+      hace fallback a `Package` si el icono guardado ya no existe en el catálogo.
+      `decodeURIComponent` en PUT/DELETE envuelto en try/catch (URIError → 400).
+    - **dashboard.js threshold**: `Number(val) || 5` retornaba 5 cuando el
+      valor era "0" (falsy). Cambiado a `Number.isFinite(parsed) ? parsed : 5`.
+    - **users POST schema**: agregados `documentNumber` y `address` que sólo
+      estaban en update (con `additionalProperties: false` el create rechazaba
+      si el frontend los enviaba).
+    - **stock adjust schema**: `qty` ahora tiene `minimum: -100000`,
+      `maximum: 100000`, `not: { const: 0 }` — el frontend ya filtraba pero
+      el server era permisivo.
 
 - **2026-05-07 — Fases 2.4-lite + 3 + 4 cerradas.** Frontend SPA monta,
   login con admin/admin123 entra al shell, sidebar respeta `ownerOnly`
@@ -467,7 +584,7 @@ PRIMERA ACCIÓN: lee PLAN.md ENTERO y HANDOFF.md ENTERO antes de tocar nada.
 Después dame plan corto (3-5 bullets) de lo que vas a hacer y procedé sin
 esperar OK (modo autónomo, igual que las instancias anteriores).
 
-# ESTADO REAL AL 2026-05-08
+# ESTADO REAL AL 2026-05-08 (post fase 7)
 
 Funcional end-to-end y desplegado:
 - POSView con búsqueda, scanner, carrito, PaymentModal (Efectivo/QR/Tarjeta/Mixto),
@@ -482,7 +599,14 @@ Funcional end-to-end y desplegado:
   users, settings PUT, dashboard, notifications, whatsapp util).
 - Code splitting activo: bundle inicial 109KB (gzip 29KB).
 - Service Worker activo: cache offline de assets JS/CSS/HTML; /api/ siempre va a red.
-- Migraciones 001+002+003 corridas en prod.
+- Migraciones 001..006 corridas en prod (auto-aplicadas al arrancar).
+- Modo barcode scanner activo: scanner que mete dígitos rápido auto-agrega al
+  carrito sin Enter. Búsqueda manual no se ve afectada (gate strict por dígitos+5chars).
+- Categorías editables desde POS (botón "+ Categoría" owner-only) con IconPicker
+  de 51 iconos lucide curados + sugerencias por keyword.
+- Permisos por usuario: en Ajustes → Empleados, al crear/editar un vendedora
+  se pueden conceder vistas extra (Inventario, Dashboard, Contabilidad). Owner
+  ve todo siempre. Settings (incluida Empleados/Choferes) sigue siendo owner-only.
 
 # QUÉ NO HACER
 

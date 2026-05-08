@@ -286,12 +286,23 @@ export default async function orderRoutes(app) {
       // driver_id puede venir como '' del front; normalizar a null.
       if ('driver_id' in fields && !fields.driver_id) fields.driver_id = null;
 
-      // Leer el chofer previo para detectar cambio
+      // Leer estado y chofer previo
       const prevRows = await query(
-        'SELECT driver_id FROM orders WHERE id = ?',
+        'SELECT status, driver_id FROM orders WHERE id = ?',
         [req.params.id]
       );
-      const prevDriverId = prevRows[0]?.driver_id || null;
+      if (!prevRows.length) {
+        return reply.code(404).send({ error: 'Pedido no encontrado' });
+      }
+      const prevStatus = prevRows[0].status;
+      const prevDriverId = prevRows[0].driver_id || null;
+
+      // Bloquear edición si el pedido ya está en estado terminal
+      if (['entregado', 'devuelto', 'cancelado'].includes(prevStatus)) {
+        return reply.code(409).send({
+          error: `No se puede editar un pedido en estado "${prevStatus}"`,
+        });
+      }
 
       const set = keys.map((k) => `\`${k}\` = ?`).join(', ');
       const values = keys.map((k) => fields[k]);

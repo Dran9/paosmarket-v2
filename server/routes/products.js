@@ -45,7 +45,7 @@ const stockSchema = {
   body: {
     type: 'object',
     required: ['qty'],
-    properties: { qty: { type: 'integer' } },
+    properties: { qty: { type: 'integer', minimum: -100000, maximum: 100000, not: { const: 0 } } },
     additionalProperties: false,
   },
   params: {
