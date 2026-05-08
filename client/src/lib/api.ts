@@ -1,9 +1,15 @@
 import type {
+  AppNotification,
   AppSettings,
+  Driver,
   LoginUser,
+  Order,
+  OrderStatus,
   Product,
   SaleRow,
   Transaction,
+  TransportSettled,
+  TransportType,
   User,
 } from './types';
 
@@ -120,5 +126,51 @@ export const api = {
       }),
     sales: (params: { from?: string; to?: string; saleType?: string } = {}) =>
       request<SaleRow[]>('/api/transactions/sales', { query: params }),
+  },
+  drivers: {
+    list: () => request<Driver[]>('/api/drivers'),
+  },
+  orders: {
+    list: () => request<Order[]>('/api/orders'),
+    create: (body: {
+      items: Array<{ productId: number; qty: number }>;
+      client_name: string;
+      client_phone?: string;
+      client_zone?: string;
+      client_addr: string;
+      notes?: string | null;
+      transport_type?: TransportType;
+      transport_cost?: number;
+      driver_id?: string | null;
+    }) => request<Order>('/api/orders', { method: 'POST', body }),
+    update: (
+      id: string,
+      body: Partial<{
+        client_name: string;
+        client_phone: string;
+        client_zone: string;
+        client_addr: string;
+        notes: string | null;
+        transport_type: TransportType;
+        transport_cost: number;
+        driver_id: string | null;
+      }>
+    ) => request<Order>(`/api/orders/${id}`, { method: 'PUT', body }),
+    setStatus: (
+      id: string,
+      body: {
+        status: OrderStatus;
+        method?: 'QR' | 'Depósito';
+        cancel_reason?: string | null;
+        transport_settled?: TransportSettled | null;
+      }
+    ) => request<Order>(`/api/orders/${id}/status`, { method: 'PUT', body }),
+  },
+  notifications: {
+    list: () => request<AppNotification[]>('/api/notifications'),
+    read: (id: number) =>
+      request<{ ok: boolean }>(`/api/notifications/${id}/read`, { method: 'PUT' }),
+    readAll: () =>
+      request<{ ok: boolean }>('/api/notifications/read-all', { method: 'PUT' }),
   },
 };

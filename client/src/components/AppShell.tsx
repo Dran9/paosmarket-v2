@@ -15,7 +15,9 @@ import { setToken } from '@/lib/api';
 import { api } from '@/lib/api';
 import POSView from '@/views/POSView';
 import SalesView from '@/views/SalesView';
+import OrdersView from '@/views/OrdersView';
 import Placeholder from '@/views/Placeholder';
+import BellMenu from '@/components/BellMenu';
 import type { ViewKey } from '@/lib/types';
 
 interface NavEntry {
@@ -57,7 +59,7 @@ export default function AppShell() {
   const VIEWS: Record<ViewKey, JSX.Element> = {
     pos: <POSView />,
     sales: <SalesView />,
-    orders: <Placeholder title="Pedidos" icon={Truck} />,
+    orders: <OrdersView />,
     dashboard: <Placeholder title="Dashboard" icon={BarChart3} />,
     accounting: <Placeholder title="Contabilidad" icon={Calculator} />,
     inventory: <Placeholder title="Inventario" icon={Package} />,
@@ -134,7 +136,12 @@ export default function AppShell() {
         </div>
       </aside>
 
-      <main className="flex-1 overflow-y-auto p-6">{VIEWS[activeKey]}</main>
+      <div className="flex-1 flex flex-col overflow-hidden">
+        <header className="bg-white border-b border-slate-200 px-6 py-2 flex items-center justify-end">
+          <BellMenu />
+        </header>
+        <main className="flex-1 overflow-y-auto p-6">{VIEWS[activeKey]}</main>
+      </div>
     </div>
   );
 }

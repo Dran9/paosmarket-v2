@@ -20,7 +20,7 @@ const PERIODS: ReadonlyArray<readonly [Period, string]> = [
 
 const TYPES: ReadonlyArray<readonly ['all' | 'site' | 'delivery', string]> = [
   ['all', 'Todas'],
-  ['site', 'In situ'],
+  ['site', 'En tienda'],
   ['delivery', 'Delivery'],
 ];
 
@@ -147,9 +147,13 @@ export default function SalesView() {
                   <td className="px-3 py-3 text-slate-600">{row.category}</td>
                   <td className="px-3 py-3 text-center">
                     {row.saleType === 'site' ? (
-                      <Store size={18} className="inline text-indigo-500" />
+                      <span title="En tienda">
+                        <Store size={18} className="inline text-indigo-500" />
+                      </span>
                     ) : (
-                      <Truck size={18} className="inline text-amber-500" />
+                      <span title="Delivery">
+                        <Truck size={18} className="inline text-amber-500" />
+                      </span>
                     )}
                   </td>
                   <td className="px-3 py-3 text-right font-semibold">{fmt(row.price)}</td>

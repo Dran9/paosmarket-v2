@@ -15,12 +15,27 @@ import {
   Receipt as ReceiptIcon,
   Printer,
   Loader2,
+  User as UserIcon,
+  Phone,
+  Coins,
+  ReceiptText,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
-import { useProducts, useCreateTransaction } from '@/lib/queries';
+import {
+  useProducts,
+  useCreateTransaction,
+  useCreateOrder,
+  useDrivers,
+} from '@/lib/queries';
 import { useStore } from '@/lib/store';
 import { fmt, round2, calcTax, fmtDateTime } from '@/lib/utils';
-import type { Product, Transaction } from '@/lib/types';
+import type {
+  CartItem,
+  Order,
+  Product,
+  Transaction,
+  TransportType,
+} from '@/lib/types';
 import ProductCard from '@/components/ProductCard';
 import Modal from '@/components/Modal';
 
@@ -34,7 +49,9 @@ export default function POSView() {
   const [search, setSearch] = useState('');
   const [saleType, setSaleType] = useState<SaleType>('site');
   const [showPayment, setShowPayment] = useState(false);
+  const [showDelivery, setShowDelivery] = useState(false);
   const [showReceipt, setShowReceipt] = useState<Transaction | null>(null);
+  const [showOrderConfirm, setShowOrderConfirm] = useState<Order | null>(null);
 
   const filtered = useMemo(() => {
     const q = search.toLowerCase().trim();
@@ -54,14 +71,21 @@ export default function POSView() {
   const total = round2(subtotal + tax);
   const totalUnits = cart.reduce((s, c) => s + c.qty, 0);
 
-  const handleClickProduct = (p: Product) => {
-    addToCart(p);
-  };
-
-  const handleSuccess = (tx: Transaction) => {
+  const handlePaymentSuccess = (tx: Transaction) => {
     setShowPayment(false);
     setShowReceipt(tx);
     resetCart();
+  };
+
+  const handleOrderSuccess = (order: Order) => {
+    setShowDelivery(false);
+    setShowOrderConfirm(order);
+    resetCart();
+  };
+
+  const handleCheckout = () => {
+    if (saleType === 'delivery') setShowDelivery(true);
+    else setShowPayment(true);
   };
 
   return (
@@ -84,7 +108,7 @@ export default function POSView() {
 
         <div className="grid grid-cols-[repeat(auto-fill,minmax(150px,1fr))] gap-3 overflow-y-auto flex-1 pb-2 pr-1">
           {filtered.map((p) => (
-            <ProductCard key={p.id} product={p} onClick={handleClickProduct} />
+            <ProductCard key={p.id} product={p} onClick={(prod: Product) => addToCart(prod)} />
           ))}
           {!filtered.length && !isLoading && (
             <div className="col-span-full text-center py-12 text-slate-400 text-sm">
@@ -115,7 +139,7 @@ export default function POSView() {
         onSetQty={setQty}
         onRemove={removeItem}
         onClear={resetCart}
-        onCheckout={() => setShowPayment(true)}
+        onCheckout={handleCheckout}
       />
 
       {showPayment && (
@@ -124,10 +148,20 @@ export default function POSView() {
           subtotal={subtotal}
           tax={tax}
           taxRate={settings.taxRate}
-          saleType={saleType}
           cart={cart}
           onClose={() => setShowPayment(false)}
-          onSuccess={handleSuccess}
+          onSuccess={handlePaymentSuccess}
+        />
+      )}
+
+      {showDelivery && (
+        <DeliveryModal
+          cart={cart}
+          subtotal={subtotal}
+          tax={tax}
+          productsTotal={total}
+          onClose={() => setShowDelivery(false)}
+          onSuccess={handleOrderSuccess}
         />
       )}
 
@@ -140,6 +174,13 @@ export default function POSView() {
           businessNIT={settings.businessNIT}
           taxRate={settings.taxRate}
           onClose={() => setShowReceipt(null)}
+        />
+      )}
+
+      {showOrderConfirm && (
+        <OrderConfirmModal
+          order={showOrderConfirm}
+          onClose={() => setShowOrderConfirm(null)}
         />
       )}
     </div>
@@ -161,7 +202,7 @@ function CartPanel({
   onClear,
   onCheckout,
 }: {
-  cart: ReturnType<typeof useStore.getState>['cart'];
+  cart: CartItem[];
   subtotal: number;
   tax: number;
   total: number;
@@ -175,6 +216,7 @@ function CartPanel({
   onClear: () => void;
   onCheckout: () => void;
 }) {
+  const isDelivery = saleType === 'delivery';
   return (
     <div className="bg-white rounded-xl border-2 border-slate-200 flex flex-col overflow-hidden">
       <div className="px-5 py-4 border-b border-slate-200 flex items-center justify-between">
@@ -252,17 +294,17 @@ function CartPanel({
           <button
             onClick={() => setSaleType('site')}
             className={`flex items-center justify-center gap-1.5 py-2 rounded-lg text-xs font-semibold transition-all ${
-              saleType === 'site'
+              !isDelivery
                 ? 'bg-indigo-500 text-white'
                 : 'bg-white text-slate-600 border border-slate-200'
             }`}
           >
-            <Store size={12} /> En sitio
+            <Store size={12} /> En tienda
           </button>
           <button
             onClick={() => setSaleType('delivery')}
             className={`flex items-center justify-center gap-1.5 py-2 rounded-lg text-xs font-semibold transition-all ${
-              saleType === 'delivery'
+              isDelivery
                 ? 'bg-amber-500 text-white'
                 : 'bg-white text-slate-600 border border-slate-200'
             }`}
@@ -270,6 +312,12 @@ function CartPanel({
             <Truck size={12} /> Delivery
           </button>
         </div>
+
+        {isDelivery && (
+          <div className="bg-amber-50 rounded-lg px-3 py-1.5 mb-2 text-[11px] font-semibold text-amber-700 text-center">
+            <Truck size={11} className="inline mr-1" /> Modo delivery — se creará un pedido
+          </div>
+        )}
 
         <div className="mb-3 text-sm">
           <div className="flex justify-between py-0.5 text-slate-500">
@@ -289,10 +337,14 @@ function CartPanel({
         <button
           disabled={cart.length === 0}
           onClick={onCheckout}
-          className="w-full flex items-center justify-center gap-2 py-3.5 rounded-lg text-sm font-bold transition-all disabled:opacity-40 disabled:cursor-not-allowed bg-indigo-500 hover:bg-indigo-600 text-white"
+          className={`w-full flex items-center justify-center gap-2 py-3.5 rounded-lg text-sm font-bold transition-all disabled:opacity-40 disabled:cursor-not-allowed text-white ${
+            isDelivery
+              ? 'bg-amber-500 hover:bg-amber-600'
+              : 'bg-indigo-500 hover:bg-indigo-600'
+          }`}
         >
-          <CreditCard size={15} />
-          Cobrar {fmt(total)}
+          {isDelivery ? <Truck size={15} /> : <CreditCard size={15} />}
+          {isDelivery ? 'Crear pedido' : 'Cobrar'} {fmt(total)}
         </button>
       </div>
     </div>
@@ -304,7 +356,6 @@ function PaymentModal({
   subtotal,
   tax,
   taxRate,
-  saleType,
   cart,
   onClose,
   onSuccess,
@@ -313,8 +364,7 @@ function PaymentModal({
   subtotal: number;
   tax: number;
   taxRate: number;
-  saleType: SaleType;
-  cart: ReturnType<typeof useStore.getState>['cart'];
+  cart: CartItem[];
   onClose: () => void;
   onSuccess: (tx: Transaction) => void;
 }) {
@@ -341,7 +391,7 @@ function PaymentModal({
     const body: Parameters<typeof create.mutateAsync>[0] = {
       items: cart.map((c) => ({ productId: c.productId, qty: c.qty })),
       method,
-      sale_type: saleType,
+      sale_type: 'site',
     };
     if (method === 'Efectivo') body.cash_received = cashReceived;
     if (method === 'Mixto') {
@@ -499,6 +549,290 @@ function PaymentModal({
   );
 }
 
+function DeliveryModal({
+  cart,
+  subtotal,
+  tax,
+  productsTotal,
+  onClose,
+  onSuccess,
+}: {
+  cart: CartItem[];
+  subtotal: number;
+  tax: number;
+  productsTotal: number;
+  onClose: () => void;
+  onSuccess: (order: Order) => void;
+}) {
+  const { data: drivers = [] } = useDrivers();
+  const create = useCreateOrder();
+
+  const [name, setName] = useState('');
+  const [phone, setPhone] = useState('');
+  const [zone, setZone] = useState('');
+  const [addr, setAddr] = useState('');
+  const [notes, setNotes] = useState('');
+  const [transportType, setTransportType] = useState<TransportType>('incluido');
+  const [transportCost, setTransportCost] = useState(15);
+  const [driverId, setDriverId] = useState<string | null>(null);
+  const [error, setError] = useState('');
+
+  const finalTotal =
+    transportType === 'incluido'
+      ? round2(productsTotal + transportCost)
+      : productsTotal;
+
+  const valid = name.trim().length > 0 && addr.trim().length > 0;
+
+  const handleConfirm = async () => {
+    if (!valid || create.isPending) return;
+    setError('');
+    try {
+      const order = await create.mutateAsync({
+        items: cart.map((c) => ({ productId: c.productId, qty: c.qty })),
+        client_name: name.trim(),
+        client_phone: phone.trim(),
+        client_zone: zone.trim(),
+        client_addr: addr.trim(),
+        notes: notes.trim() || null,
+        transport_type: transportType,
+        transport_cost: transportCost,
+        driver_id: driverId,
+      });
+      toast.success(`Pedido ${order.id} creado`);
+      onSuccess(order);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Error al crear el pedido');
+    }
+  };
+
+  const QUICK_TRANSPORT = [10, 15, 20, 30];
+
+  return (
+    <Modal open onClose={onClose} title="Pedido con entrega" size="lg">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-5">
+        <div className="bg-slate-50 rounded-lg p-4 text-center">
+          <div className="text-[11px] text-slate-500 uppercase font-semibold">Productos + IVA</div>
+          <div className="text-2xl font-extrabold text-slate-700">{fmt(productsTotal)}</div>
+          <div className="text-[10px] text-slate-400 mt-0.5">
+            Subtotal {fmt(subtotal)} · IVA {fmt(tax)}
+          </div>
+        </div>
+        <div className="bg-indigo-50 rounded-lg p-4 text-center border-2 border-indigo-100">
+          <div className="text-[11px] text-indigo-500 uppercase font-semibold">Total a cobrar</div>
+          <div className="text-3xl font-extrabold text-indigo-600">{fmt(finalTotal)}</div>
+          <div className="text-[10px] text-indigo-400 mt-0.5">
+            {transportType === 'incluido'
+              ? `Incluye transporte ${fmt(transportCost)}`
+              : `+ ${fmt(transportCost)} al chofer en entrega`}
+          </div>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-3">
+        <FormField label="Nombre del cliente" required>
+          <input
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            placeholder="Doña Marta"
+            autoFocus
+            className="w-full px-3 py-2.5 border-2 border-slate-200 rounded-lg focus:border-indigo-500 outline-none"
+          />
+        </FormField>
+        <FormField label="Teléfono">
+          <input
+            value={phone}
+            onChange={(e) => setPhone(e.target.value)}
+            placeholder="591…"
+            className="w-full px-3 py-2.5 border-2 border-slate-200 rounded-lg focus:border-indigo-500 outline-none"
+          />
+        </FormField>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-[1fr_2fr] gap-3 mb-3">
+        <FormField label="Zona">
+          <input
+            value={zone}
+            onChange={(e) => setZone(e.target.value)}
+            placeholder="Zona Norte"
+            className="w-full px-3 py-2.5 border-2 border-slate-200 rounded-lg focus:border-indigo-500 outline-none"
+          />
+        </FormField>
+        <FormField label="Dirección" required>
+          <input
+            value={addr}
+            onChange={(e) => setAddr(e.target.value)}
+            placeholder="Calle, número, referencia"
+            className="w-full px-3 py-2.5 border-2 border-slate-200 rounded-lg focus:border-indigo-500 outline-none"
+          />
+        </FormField>
+      </div>
+
+      <FormField label="Notas (opcional)">
+        <textarea
+          value={notes}
+          onChange={(e) => setNotes(e.target.value)}
+          placeholder="Tocar timbre 2 veces, casa rosada, etc."
+          rows={2}
+          className="w-full px-3 py-2 border-2 border-slate-200 rounded-lg focus:border-indigo-500 outline-none resize-none"
+        />
+      </FormField>
+
+      <label className="block text-[11px] font-semibold text-slate-500 uppercase tracking-wider mb-2 mt-4">
+        Transporte
+      </label>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-2 mb-3">
+        {(
+          [
+            {
+              k: 'incluido' as TransportType,
+              Icon: ReceiptText,
+              t: 'Incluir transporte',
+              d: 'Se suma al total — Paola cobra todo',
+            },
+            {
+              k: 'pago_entrega' as TransportType,
+              Icon: Coins,
+              t: 'Pago en entrega',
+              d: 'El cliente le paga al chofer',
+            },
+          ]
+        ).map((o) => (
+          <button
+            key={o.k}
+            type="button"
+            onClick={() => setTransportType(o.k)}
+            className={`flex items-center gap-3 p-3 border-2 rounded-lg text-left transition-all ${
+              transportType === o.k
+                ? 'border-indigo-500 bg-indigo-50'
+                : 'border-slate-200 hover:border-indigo-300'
+            }`}
+          >
+            <o.Icon size={20} className="text-indigo-500 flex-shrink-0" />
+            <div>
+              <div className="font-bold text-sm text-slate-800">{o.t}</div>
+              <div className="text-[11px] text-slate-500">{o.d}</div>
+            </div>
+          </button>
+        ))}
+      </div>
+
+      <FormField label="Costo del transporte (Bs)">
+        <div className="flex gap-2 items-center">
+          <input
+            type="number"
+            min={0}
+            value={transportCost}
+            onChange={(e) => setTransportCost(Math.max(0, parseFloat(e.target.value) || 0))}
+            className="w-32 px-3 py-2.5 border-2 border-slate-200 rounded-lg focus:border-indigo-500 outline-none"
+          />
+          {QUICK_TRANSPORT.map((v) => (
+            <button
+              key={v}
+              type="button"
+              onClick={() => setTransportCost(v)}
+              className={`px-3 py-1.5 text-xs font-semibold border rounded-lg ${
+                transportCost === v
+                  ? 'bg-indigo-500 text-white border-indigo-500'
+                  : 'bg-white border-slate-200 text-slate-600 hover:bg-indigo-50'
+              }`}
+            >
+              {fmt(v)}
+            </button>
+          ))}
+        </div>
+      </FormField>
+
+      <label className="block text-[11px] font-semibold text-slate-500 uppercase tracking-wider mb-2 mt-2">
+        Chofer (opcional)
+      </label>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-2 mb-2">
+        <button
+          type="button"
+          onClick={() => setDriverId(null)}
+          className={`flex items-center gap-3 p-3 border-2 rounded-lg text-left transition-all ${
+            driverId === null
+              ? 'border-indigo-500 bg-indigo-50'
+              : 'border-slate-200 hover:border-indigo-300'
+          }`}
+        >
+          <div className="w-9 h-9 rounded-full bg-slate-100 text-slate-400 flex items-center justify-center">
+            <UserIcon size={16} />
+          </div>
+          <div className="text-sm font-semibold text-slate-700">Sin asignar</div>
+        </button>
+        {drivers.map((d) => (
+          <button
+            key={d.id}
+            type="button"
+            onClick={() => setDriverId(d.id)}
+            className={`flex items-center gap-3 p-3 border-2 rounded-lg text-left transition-all ${
+              driverId === d.id
+                ? 'border-indigo-500 bg-indigo-50'
+                : 'border-slate-200 hover:border-indigo-300'
+            }`}
+          >
+            <div className="w-9 h-9 rounded-full bg-indigo-100 text-indigo-500 flex items-center justify-center">
+              <UserIcon size={16} />
+            </div>
+            <div className="flex-1">
+              <div className="font-bold text-sm text-slate-800">{d.name}</div>
+              <div className="text-[11px] text-slate-500">{d.phone}</div>
+            </div>
+            <Phone size={14} className="text-emerald-500" />
+          </button>
+        ))}
+      </div>
+      <p className="text-[10px] text-slate-400 mb-1">
+        Cuando se conecte WhatsApp Business + Coexistence, al elegir un chofer se le mandará automáticamente el aviso de recogida.
+      </p>
+
+      {error && <p className="text-red-500 text-sm text-center mt-3">{error}</p>}
+
+      <div className="flex justify-end gap-2 mt-5">
+        <button
+          onClick={onClose}
+          className="px-5 py-2.5 text-sm font-semibold border border-slate-200 rounded-lg hover:bg-slate-50 text-slate-600"
+        >
+          Cancelar
+        </button>
+        <button
+          onClick={handleConfirm}
+          disabled={!valid || create.isPending}
+          className="flex items-center gap-1.5 px-6 py-2.5 text-sm font-bold bg-emerald-500 hover:bg-emerald-600 disabled:opacity-50 text-white rounded-lg"
+        >
+          {create.isPending ? (
+            <Loader2 size={14} className="animate-spin" />
+          ) : (
+            <Check size={14} />
+          )}
+          {create.isPending ? 'Creando…' : 'Confirmar pedido'}
+        </button>
+      </div>
+    </Modal>
+  );
+}
+
+function FormField({
+  label,
+  required,
+  children,
+}: {
+  label: string;
+  required?: boolean;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="mb-3">
+      <label className="block text-[11px] font-semibold text-slate-500 uppercase tracking-wider mb-1">
+        {label}
+        {required && <span className="text-red-400 ml-0.5">*</span>}
+      </label>
+      {children}
+    </div>
+  );
+}
+
 function ReceiptModal({
   tx,
   businessName,
@@ -536,7 +870,7 @@ function ReceiptModal({
           <div>Ticket: {tx.id}</div>
           <div>Fecha: {fmtDateTime(tx.date)}</div>
           <div>Atiende: {tx.attendedBy}</div>
-          <div>Tipo: {tx.saleType === 'delivery' ? 'Delivery' : 'En sitio'}</div>
+          <div>Tipo: {tx.saleType === 'delivery' ? 'Delivery' : 'En tienda'}</div>
         </div>
 
         <div className="border-b border-dashed border-slate-300 pb-2 mb-2">
@@ -613,6 +947,45 @@ function ReceiptModal({
           className="flex items-center gap-1.5 px-5 py-2 text-sm font-bold bg-indigo-500 hover:bg-indigo-600 text-white rounded-lg"
         >
           <ReceiptIcon size={14} /> Nueva venta
+        </button>
+      </div>
+    </Modal>
+  );
+}
+
+function OrderConfirmModal({ order, onClose }: { order: Order; onClose: () => void }) {
+  const { settings } = useStore();
+  return (
+    <Modal open onClose={onClose} title="Pedido creado">
+      <div className="text-center py-3">
+        <div className="w-16 h-16 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center mx-auto mb-3">
+          <Check size={32} />
+        </div>
+        <div className="text-xl font-extrabold text-slate-800">{order.id}</div>
+        <div className="text-sm text-slate-500 mb-3">creado correctamente</div>
+        <div className="text-3xl font-extrabold text-indigo-600 mb-1">{fmt(order.total)}</div>
+        <div className="text-xs text-slate-500">
+          Cliente: <strong>{order.clientName}</strong> · {order.clientAddr}
+        </div>
+        {order.notes && (
+          <div className="text-xs text-slate-500 italic mt-1">"{order.notes}"</div>
+        )}
+        <div className="text-[11px] text-slate-400 mt-3">
+          Está en estado <strong>pendiente</strong>. Lo seguís desde la vista de Pedidos.
+          {settings.businessName && (
+            <>
+              <br />
+              El dinero entrará a contabilidad cuando lo marques como entregado.
+            </>
+          )}
+        </div>
+      </div>
+      <div className="flex justify-end mt-3 no-print">
+        <button
+          onClick={onClose}
+          className="px-5 py-2 text-sm font-bold bg-indigo-500 hover:bg-indigo-600 text-white rounded-lg"
+        >
+          Continuar
         </button>
       </div>
     </Modal>
