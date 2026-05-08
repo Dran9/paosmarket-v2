@@ -16,6 +16,10 @@ export default function BellMenu({ sidebar = false }: { sidebar?: boolean }) {
   const setView = useStore((s) => s.setView);
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
+  const btnRef = useRef<HTMLButtonElement>(null);
+  // En modo sidebar, el <nav> tiene overflow-y-auto que también recorta horizontal.
+  // Por eso el dropdown se posiciona con `position: fixed` calculado del bounding rect.
+  const [fixedCoords, setFixedCoords] = useState<{ left: number; bottom: number } | null>(null);
 
   useEffect(() => {
     if (!open) return;
@@ -25,6 +29,24 @@ export default function BellMenu({ sidebar = false }: { sidebar?: boolean }) {
     document.addEventListener('mousedown', handler);
     return () => document.removeEventListener('mousedown', handler);
   }, [open]);
+
+  useEffect(() => {
+    if (!open || !sidebar || !btnRef.current) {
+      setFixedCoords(null);
+      return;
+    }
+    const update = () => {
+      const r = btnRef.current?.getBoundingClientRect();
+      if (!r) return;
+      setFixedCoords({
+        left: r.right + 8,                       // 8px de separación con el sidebar
+        bottom: window.innerHeight - r.bottom,   // alinea bottom del dropdown con bottom del botón
+      });
+    };
+    update();
+    window.addEventListener('resize', update);
+    return () => window.removeEventListener('resize', update);
+  }, [open, sidebar]);
 
   const count = notifications.length;
   const persistedCount = notifications.filter((n) => !n.derived).length;
@@ -41,6 +63,7 @@ export default function BellMenu({ sidebar = false }: { sidebar?: boolean }) {
       {sidebar ? (
         /* Versión sidebar: fila completa similar a los nav buttons */
         <button
+          ref={btnRef}
           onClick={() => setOpen((v) => !v)}
           className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-xs font-medium transition-all relative ${
             count > 0
@@ -80,11 +103,16 @@ export default function BellMenu({ sidebar = false }: { sidebar?: boolean }) {
       )}
 
       {open && (
-        <div className={`absolute w-[360px] max-h-[480px] bg-white rounded-xl border-2 border-slate-200 shadow-xl z-40 overflow-hidden flex flex-col ${
-          sidebar
-            ? 'left-full ml-2 bottom-0'   /* abre hacia la derecha del sidebar */
-            : 'right-0 top-12'            /* abre hacia abajo desde el header  */
-        }`}>
+        <div
+          style={
+            sidebar && fixedCoords
+              ? { position: 'fixed', left: fixedCoords.left, bottom: fixedCoords.bottom }
+              : undefined
+          }
+          className={`w-[360px] max-h-[480px] bg-white rounded-xl border-2 border-slate-200 shadow-xl z-50 overflow-hidden flex flex-col ${
+            sidebar ? '' : 'absolute right-0 top-12'
+          }`}
+        >
           <div className="px-4 py-3 border-b border-slate-200 flex items-center justify-between">
             <h3 className="font-bold text-sm text-slate-800">Centro de avisos</h3>
             {persistedCount > 0 && (
