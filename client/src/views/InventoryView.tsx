@@ -1,7 +1,7 @@
 import { useState, useRef, useMemo } from 'react';
 import { useForm } from 'react-hook-form';
 import toast from 'react-hot-toast';
-import { Plus, Pencil, Trash2, PackagePlus, Download, Upload, X } from 'lucide-react';
+import { Plus, Pencil, Trash2, PackagePlus, Download, Upload } from 'lucide-react';
 import { useProducts, useCreateProduct, useUpdateProduct, useDeleteProduct, useStockAdjust, useBulkImportProducts } from '@/lib/queries';
 import { useStore } from '@/lib/store';
 import { fmt } from '@/lib/utils';
@@ -14,6 +14,7 @@ const CATEGORIES = ['Bebidas', 'Lácteos', 'Panadería', 'Abarrotes', 'Snacks', 
 
 interface ProductForm {
   name: string;
+  brand: string;
   category: string;
   barcode: string;
   price: number;
@@ -35,12 +36,12 @@ function ProductModal({
 
   const { register, handleSubmit, formState: { errors } } = useForm<ProductForm>({
     defaultValues: product
-      ? { name: product.name, category: product.category, barcode: product.barcode, price: product.price, cost: product.cost, stock: product.stock, unit: product.unit }
-      : { name: '', category: 'Abarrotes', barcode: '', price: 0, cost: 0, stock: 0, unit: 'pza' },
+      ? { name: product.name, brand: product.brand || '', category: product.category, barcode: product.barcode, price: product.price, cost: product.cost, stock: product.stock, unit: product.unit }
+      : { name: '', brand: '', category: 'Abarrotes', barcode: '', price: 0, cost: 0, stock: 0, unit: 'pza' },
   });
 
   const onSubmit = async (data: ProductForm) => {
-    const body = { ...data, price: Number(data.price), cost: Number(data.cost), stock: Number(data.stock) };
+    const body = { ...data, brand: data.brand || '', price: Number(data.price), cost: Number(data.cost), stock: Number(data.stock) };
     try {
       if (isEdit) {
         await updateProduct.mutateAsync({ id: product!.id, body });
@@ -60,11 +61,20 @@ function ProductModal({
   return (
     <Modal onClose={onClose} title={isEdit ? 'Editar producto' : 'Nuevo producto'}>
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-3">
-        <div>
-          <label className="text-xs font-semibold text-slate-600 block mb-1">Nombre *</label>
-          <input {...register('name', { required: true })}
-            className="w-full px-3 py-2 border-2 border-slate-200 rounded-lg focus:border-indigo-500 outline-none text-sm" />
-          {errors.name && <p className="text-xs text-red-500 mt-0.5">Requerido</p>}
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <label className="text-xs font-semibold text-slate-600 block mb-1">Nombre *</label>
+            <input {...register('name', { required: true })}
+              placeholder="Papel Higiénico"
+              className="w-full px-3 py-2 border-2 border-slate-200 rounded-lg focus:border-indigo-500 outline-none text-sm" />
+            {errors.name && <p className="text-xs text-red-500 mt-0.5">Requerido</p>}
+          </div>
+          <div>
+            <label className="text-xs font-semibold text-slate-600 block mb-1">Marca</label>
+            <input {...register('brand')}
+              placeholder="Finesse, Pil, Coca-Cola…"
+              className="w-full px-3 py-2 border-2 border-slate-200 rounded-lg focus:border-indigo-500 outline-none text-sm" />
+          </div>
         </div>
         <div className="grid grid-cols-2 gap-3">
           <div>
@@ -175,10 +185,14 @@ export default function InventoryView() {
 
   const filtered = useMemo(() => {
     let list = products;
-    if (search) list = list.filter((p) =>
-      p.name.toLowerCase().includes(search.toLowerCase()) ||
-      p.barcode.includes(search)
-    );
+    if (search) {
+      const q = search.toLowerCase();
+      list = list.filter((p) =>
+        p.name.toLowerCase().includes(q) ||
+        (p.brand || '').toLowerCase().includes(q) ||
+        p.barcode.includes(search)
+      );
+    }
     if (filterCat) list = list.filter((p) => p.category === filterCat);
     return list;
   }, [products, search, filterCat]);
@@ -198,6 +212,7 @@ export default function InventoryView() {
     const rows = products.map((p) => ({
       ID: p.id,
       Nombre: p.name,
+      Marca: p.brand || '',
       Categoría: p.category,
       'Código Barras': p.barcode,
       Precio: p.price,
@@ -228,6 +243,7 @@ export default function InventoryView() {
       const items = rows
         .map((r) => ({
           name: String(r['Nombre'] || r['name'] || '').trim(),
+          brand: String(r['Marca'] || r['brand'] || '').trim(),
           category: String(r['Categoría'] || r['Categoria'] || r['category'] || '').trim(),
           barcode: String(r['Código Barras'] || r['barcode'] || '').trim(),
           price: Number(r['Precio'] || r['price'] || 0),
@@ -284,15 +300,27 @@ export default function InventoryView() {
         </div>
       </div>
 
-      <div className="flex gap-3 mb-4">
+      <div className="mb-4">
         <input value={search} onChange={(e) => setSearch(e.target.value)}
-          placeholder="Buscar por nombre o código..."
-          className="flex-1 px-4 py-2.5 border-2 border-slate-200 rounded-lg focus:border-indigo-500 outline-none text-sm" />
-        <select value={filterCat} onChange={(e) => setFilterCat(e.target.value)}
-          className="px-3 py-2.5 border-2 border-slate-200 rounded-lg focus:border-indigo-500 outline-none text-sm bg-white">
-          <option value="">Todas las categorías</option>
-          {cats.map((c) => <option key={c}>{c}</option>)}
-        </select>
+          placeholder="Buscar por nombre, marca o código..."
+          className="w-full px-4 py-2.5 border-2 border-slate-200 rounded-lg focus:border-indigo-500 outline-none text-sm mb-3" />
+        <div className="flex gap-2 flex-wrap">
+          <button onClick={() => setFilterCat('')}
+            className={`px-4 py-2 rounded-full text-xs font-semibold border-2 transition-all ${
+              filterCat === '' ? 'bg-indigo-500 text-white border-indigo-500' : 'bg-white text-slate-600 border-slate-200 hover:border-indigo-300'
+            }`}>
+            Todos
+          </button>
+          {cats.map((c) => (
+            <button key={c} onClick={() => setFilterCat(c)}
+              className={`flex items-center gap-1.5 px-4 py-2 rounded-full text-xs font-semibold border-2 transition-all ${
+                filterCat === c ? 'bg-indigo-500 text-white border-indigo-500' : 'bg-white text-slate-600 border-slate-200 hover:border-indigo-300'
+              }`}>
+              <CategoryIcon category={c} size={11} />
+              {c}
+            </button>
+          ))}
+        </div>
       </div>
 
       <div className="bg-white rounded-xl border-2 border-slate-200 overflow-hidden">
@@ -325,7 +353,10 @@ export default function InventoryView() {
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-2">
                         <CategoryIcon category={p.category} size={16} className="text-indigo-400 flex-shrink-0" />
-                        <span className="font-semibold text-slate-800">{p.name}</span>
+                        <div className="leading-tight">
+                          <div className="font-semibold text-slate-800">{p.name}</div>
+                          {p.brand && <div className="text-[10px] text-slate-400">{p.brand}</div>}
+                        </div>
                       </div>
                     </td>
                     <td className="px-3 py-3 text-slate-500">{p.category}</td>

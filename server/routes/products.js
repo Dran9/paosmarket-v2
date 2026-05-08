@@ -6,6 +6,7 @@ const productCreateSchema = {
     required: ['name', 'category', 'price'],
     properties: {
       name: { type: 'string', minLength: 1, maxLength: 200 },
+      brand: { type: 'string', maxLength: 100 },
       category: { type: 'string', minLength: 1, maxLength: 50 },
       barcode: { type: 'string', maxLength: 50 },
       price: { type: 'number', minimum: 0 },
@@ -22,6 +23,7 @@ const productUpdateSchema = {
     type: 'object',
     properties: {
       name: { type: 'string', minLength: 1, maxLength: 200 },
+      brand: { type: 'string', maxLength: 100 },
       category: { type: 'string', minLength: 1, maxLength: 50 },
       barcode: { type: 'string', maxLength: 50 },
       price: { type: 'number', minimum: 0 },
@@ -57,6 +59,7 @@ export function toProductDTO(row) {
   return {
     id: row.id,
     name: row.name,
+    brand: row.brand || '',
     category: row.category,
     barcode: row.barcode || '',
     price: Number(row.price),
@@ -81,6 +84,7 @@ export default async function productRoutes(app) {
     async (req, reply) => {
       const {
         name,
+        brand = '',
         category,
         barcode = '',
         price,
@@ -90,9 +94,9 @@ export default async function productRoutes(app) {
       } = req.body;
 
       const result = await query(
-        `INSERT INTO products (name, category, barcode, price, cost, stock, unit)
-         VALUES (?, ?, ?, ?, ?, ?, ?)`,
-        [name, category, barcode, price, cost, stock, unit]
+        `INSERT INTO products (name, brand, category, barcode, price, cost, stock, unit)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+        [name, brand, category, barcode, price, cost, stock, unit]
       );
       const rows = await query('SELECT * FROM products WHERE id = ?', [
         result.insertId,
@@ -167,6 +171,7 @@ export default async function productRoutes(app) {
                 type: 'object',
                 properties: {
                   name:     { type: 'string' },
+                  brand:    { type: 'string' },
                   category: { type: 'string' },
                   barcode:  { type: 'string' },
                   price:    { type: 'number' },
@@ -189,6 +194,7 @@ export default async function productRoutes(app) {
       for (let i = 0; i < items.length; i++) {
         const {
           name,
+          brand = '',
           category,
           barcode = '',
           price = 0,
@@ -206,8 +212,8 @@ export default async function productRoutes(app) {
 
         try {
           await query(
-            'INSERT INTO products (name, category, barcode, price, cost, stock, unit) VALUES (?, ?, ?, ?, ?, ?, ?)',
-            [n, c, String(barcode).trim(), Number(price), Number(cost), Number(stock), String(unit).trim()]
+            'INSERT INTO products (name, brand, category, barcode, price, cost, stock, unit) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+            [n, String(brand).trim(), c, String(barcode).trim(), Number(price), Number(cost), Number(stock), String(unit).trim()]
           );
           imported++;
         } catch (e) {

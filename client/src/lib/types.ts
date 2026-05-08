@@ -24,6 +24,7 @@ export interface LoginUser {
 export interface Product {
   id: number;
   name: string;
+  brand?: string;
   category: string;
   barcode: string;
   price: number;

@@ -28,9 +28,12 @@ export default function ProductCard({ product, onClick }: Props) {
           <CategoryIcon category={product.category} size={24} className="text-indigo-500" />
         </div>
       </div>
-      <div className="text-base font-bold text-center text-slate-800 mb-1.5 leading-tight line-clamp-2">
+      <div className="text-base font-bold text-center text-slate-800 mb-0.5 leading-tight line-clamp-2">
         {product.name}
       </div>
+      {product.brand && (
+        <div className="text-[11px] text-center text-slate-400 mb-1 truncate">{product.brand}</div>
+      )}
       <div className="text-[22px] font-black text-center text-indigo-500 mb-1.5">
         {settings.currencySymbol} {product.price.toFixed(2)}
       </div>

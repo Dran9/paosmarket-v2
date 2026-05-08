@@ -282,7 +282,7 @@ export const useCreateProduct = () => {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (body: {
-      name: string; category: string; barcode?: string; price: number;
+      name: string; brand?: string; category: string; barcode?: string; price: number;
       cost: number; stock: number; unit: string;
     }) => fetch('/api/products', {
       method: 'POST',
@@ -302,7 +302,7 @@ export const useCreateProduct = () => {
 export const useUpdateProduct = () => {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({ id, body }: { id: number; body: Partial<{ name: string; category: string; barcode: string; price: number; cost: number; stock: number; unit: string }> }) =>
+    mutationFn: ({ id, body }: { id: number; body: Partial<{ name: string; brand: string; category: string; barcode: string; price: number; cost: number; stock: number; unit: string }> }) =>
       fetch(`/api/products/${id}`, {
         method: 'PUT',
         headers: {
@@ -339,7 +339,7 @@ export const useBulkImportProducts = () => {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (items: Array<{
-      name: string; category: string; barcode?: string;
+      name: string; brand?: string; category: string; barcode?: string;
       price?: number; cost?: number; stock?: number; unit?: string;
     }>) =>
       fetch('/api/products/bulk', {
