@@ -3,18 +3,21 @@ import fastifyStatic from '@fastify/static';
 import path from 'path';
 import fs from 'fs';
 import { fileURLToPath } from 'url';
+import { initDB, pingDB } from './server/db.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const app = Fastify({ logger: true });
 const distDir = path.join(__dirname, 'client', 'dist');
+const VERSION = '2.0.0';
 
 app.get('/api/health', async () => ({
   ok: true,
-  version: '2.0.0',
+  version: VERSION,
   time: new Date().toISOString(),
   node: process.version,
+  db: await pingDB(),
 }));
 
 async function start() {
@@ -36,7 +39,12 @@ async function start() {
     await app.listen({ port, host: '0.0.0.0' });
   } catch (err) {
     app.log.error(err);
+    return;
   }
+
+  initDB(app.log).catch((err) => {
+    app.log.error({ err }, 'initDB falló; el servidor sigue arriba');
+  });
 }
 
 start();
