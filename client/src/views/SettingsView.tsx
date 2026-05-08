@@ -149,6 +149,30 @@ function UserModal({ user, onClose }: { user: User | null; onClose: () => void }
   );
 }
 
+function TextField({
+  label,
+  value,
+  onChange,
+  placeholder,
+}: {
+  label: string;
+  value: string;
+  onChange: (v: string) => void;
+  placeholder?: string;
+}) {
+  return (
+    <div>
+      <label className="text-xs font-semibold text-slate-600 block mb-1">{label}</label>
+      <input
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder={placeholder}
+        className="w-full px-3 py-2 border-2 border-slate-200 rounded-lg focus:border-indigo-500 outline-none text-sm"
+      />
+    </div>
+  );
+}
+
 function BusinessTab() {
   const { settings, setSettings } = useStore();
   const updateSettings = useUpdateSettings();
@@ -172,7 +196,15 @@ function BusinessTab() {
       businessPhone: settings.businessPhone,
       businessEmail: settings.businessEmail,
     });
-  }, [settings.businessName]);
+  }, [
+    settings.businessName,
+    settings.businessTagline,
+    settings.businessNIT,
+    settings.businessAddress,
+    settings.businessCity,
+    settings.businessPhone,
+    settings.businessEmail,
+  ]);
 
   const handleSave = async () => {
     try {
@@ -184,29 +216,20 @@ function BusinessTab() {
     }
   };
 
-  const F = ({ label, field, placeholder }: { label: string; field: keyof typeof form; placeholder?: string }) => (
-    <div>
-      <label className="text-xs font-semibold text-slate-600 block mb-1">{label}</label>
-      <input
-        value={form[field]}
-        onChange={(e) => setForm((s) => ({ ...s, [field]: e.target.value }))}
-        placeholder={placeholder}
-        className="w-full px-3 py-2 border-2 border-slate-200 rounded-lg focus:border-indigo-500 outline-none text-sm"
-      />
-    </div>
-  );
+  const update = (field: keyof typeof form) => (v: string) =>
+    setForm((s) => ({ ...s, [field]: v }));
 
   return (
     <div className="space-y-3 max-w-lg">
-      <F label="Nombre del negocio *" field="businessName" placeholder="Paolita's Market" />
-      <F label="Slogan / tagline" field="businessTagline" placeholder="Tu tienda de confianza" />
-      <F label="NIT" field="businessNIT" placeholder="123456789" />
-      <F label="Dirección" field="businessAddress" placeholder="Av. Principal #123" />
+      <TextField label="Nombre del negocio *" value={form.businessName} onChange={update('businessName')} placeholder="Paolita's Market" />
+      <TextField label="Slogan / tagline" value={form.businessTagline} onChange={update('businessTagline')} placeholder="Tu tienda de confianza" />
+      <TextField label="NIT" value={form.businessNIT} onChange={update('businessNIT')} placeholder="123456789" />
+      <TextField label="Dirección" value={form.businessAddress} onChange={update('businessAddress')} placeholder="Av. Principal #123" />
       <div className="grid grid-cols-2 gap-3">
-        <F label="Ciudad" field="businessCity" placeholder="La Paz" />
-        <F label="Teléfono" field="businessPhone" placeholder="+591 2 1234567" />
+        <TextField label="Ciudad" value={form.businessCity} onChange={update('businessCity')} placeholder="La Paz" />
+        <TextField label="Teléfono" value={form.businessPhone} onChange={update('businessPhone')} placeholder="+591 2 1234567" />
       </div>
-      <F label="Email" field="businessEmail" placeholder="negocio@email.com" />
+      <TextField label="Email" value={form.businessEmail} onChange={update('businessEmail')} placeholder="negocio@email.com" />
       <div className="pt-2">
         <button onClick={handleSave} disabled={updateSettings.isPending}
           className="px-5 py-2 text-sm font-semibold text-white bg-indigo-500 rounded-lg hover:bg-indigo-600 disabled:opacity-50">
