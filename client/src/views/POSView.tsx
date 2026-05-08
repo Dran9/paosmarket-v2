@@ -117,12 +117,12 @@ export default function POSView() {
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Buscar producto o código de barras…"
-              className="w-full pl-12 pr-4 py-4 text-[22px] font-semibold rounded-xl border-2 border-slate-200 focus:border-indigo-500 outline-none bg-white"
+              className="w-full pl-12 pr-4 py-3 text-[22px] font-semibold rounded-xl border-2 border-slate-200 focus:border-indigo-500 outline-none bg-white"
             />
           </div>
         </div>
 
-        <div className="grid grid-cols-[repeat(auto-fill,minmax(128px,1fr))] gap-2.5 overflow-y-auto flex-1 pb-2 pr-1">
+        <div className="grid grid-cols-[repeat(auto-fill,minmax(168px,1fr))] gap-2.5 overflow-y-auto flex-1 pb-2 pr-1 content-start">
           {filtered.map((p) => (
             <ProductCard key={p.id} product={p} onClick={(prod: Product) => addToCart(prod)} />
           ))}
