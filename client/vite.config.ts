@@ -8,6 +8,17 @@ export default defineConfig({
   build: {
     outDir: path.resolve(__dirname, 'dist'),
     emptyOutDir: true,
+    chunkSizeWarningLimit: 600,
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          'vendor-react': ['react', 'react-dom'],
+          'vendor-charts': ['chart.js', 'react-chartjs-2'],
+          'vendor-xlsx': ['xlsx'],
+          'vendor-query': ['@tanstack/react-query'],
+        },
+      },
+    },
   },
   resolve: {
     alias: { '@': path.resolve(__dirname, 'src') },

@@ -1,5 +1,22 @@
 import { getPool, query, nextIdConn, round2 } from '../db.js';
 import { createNotification } from '../notifications.js';
+import { notifyDriver } from '../whatsapp.js';
+
+async function fireDriverNotif(driverId, order, log) {
+  if (!driverId) return;
+  try {
+    const rows = await query(
+      'SELECT * FROM drivers WHERE id = ? AND active = 1 LIMIT 1',
+      [driverId]
+    );
+    if (!rows.length) return;
+    notifyDriver(rows[0], order, log).catch((err) =>
+      log?.warn?.(`notifyDriver error: ${err.message}`)
+    );
+  } catch (err) {
+    log?.warn?.(`fireDriverNotif lookup error: ${err.message}`);
+  }
+}
 
 const TAX_RATE = 0.13;
 const DELIVERY_METHODS = ['QR', 'Depósito'];
@@ -235,6 +252,8 @@ export default async function orderRoutes(app) {
         await conn.commit();
 
         const created = await fetchSingleOrder(id);
+        // Notif WhatsApp al chofer fuera del lock
+        fireDriverNotif(driver_id, created, req.log);
         return reply.code(201).send(created);
       } catch (err) {
         await conn.rollback();
@@ -267,6 +286,13 @@ export default async function orderRoutes(app) {
       // driver_id puede venir como '' del front; normalizar a null.
       if ('driver_id' in fields && !fields.driver_id) fields.driver_id = null;
 
+      // Leer el chofer previo para detectar cambio
+      const prevRows = await query(
+        'SELECT driver_id FROM orders WHERE id = ?',
+        [req.params.id]
+      );
+      const prevDriverId = prevRows[0]?.driver_id || null;
+
       const set = keys.map((k) => `\`${k}\` = ?`).join(', ');
       const values = keys.map((k) => fields[k]);
 
@@ -292,6 +318,12 @@ export default async function orderRoutes(app) {
       }
 
       const updated = await fetchSingleOrder(req.params.id);
+
+      // Si cambió el chofer y hay uno nuevo asignado, notificar
+      if ('driver_id' in fields && fields.driver_id && fields.driver_id !== prevDriverId) {
+        fireDriverNotif(fields.driver_id, updated, req.log);
+      }
+
       return updated;
     }
   );

@@ -50,6 +50,31 @@ export const useDrivers = () =>
     staleTime: 5 * 60_000,
   });
 
+export const useCreateDriver = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: api.drivers.create,
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['drivers'] }),
+  });
+};
+
+export const useUpdateDriver = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, body }: { id: string; body: Parameters<typeof api.drivers.update>[1] }) =>
+      api.drivers.update(id, body),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['drivers'] }),
+  });
+};
+
+export const useDeleteDriver = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: api.drivers.remove,
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['drivers'] }),
+  });
+};
+
 export const useOrders = () =>
   useQuery({
     queryKey: ['orders'],

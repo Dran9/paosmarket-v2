@@ -94,6 +94,8 @@ export interface Driver {
   name: string;
   phone: string;
   plate: string;
+  whatsappId?: string;
+  active?: boolean;
 }
 
 export type OrderStatus =

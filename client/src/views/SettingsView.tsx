@@ -1,18 +1,22 @@
 import { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import toast from 'react-hot-toast';
-import { Building2, SlidersHorizontal, Users, Plus, Pencil, Trash2, Eye, EyeOff } from 'lucide-react';
-import { useUsers, useCreateUser, useUpdateUser, useDeleteUser, useUpdateSettings } from '@/lib/queries';
+import { Building2, SlidersHorizontal, Users, Truck, Plus, Pencil, Trash2, Eye, EyeOff } from 'lucide-react';
+import {
+  useUsers, useCreateUser, useUpdateUser, useDeleteUser, useUpdateSettings,
+  useDrivers, useCreateDriver, useUpdateDriver, useDeleteDriver,
+} from '@/lib/queries';
 import { useStore } from '@/lib/store';
 import Modal from '@/components/Modal';
-import type { AppSettings, User } from '@/lib/types';
+import type { AppSettings, User, Driver } from '@/lib/types';
 
-type Tab = 'negocio' | 'general' | 'empleados';
+type Tab = 'negocio' | 'general' | 'empleados' | 'choferes';
 
 const TABS: [Tab, string, any][] = [
   ['negocio', 'Negocio', Building2],
   ['general', 'General', SlidersHorizontal],
   ['empleados', 'Empleados', Users],
+  ['choferes', 'Choferes', Truck],
 ];
 
 interface UserForm {
@@ -393,6 +397,182 @@ function EmpleadosTab() {
   );
 }
 
+interface DriverForm {
+  id: string;
+  name: string;
+  phone: string;
+  plate: string;
+  whatsappId: string;
+}
+
+function DriverModal({ driver, onClose }: { driver: Driver | null; onClose: () => void }) {
+  const createDriver = useCreateDriver();
+  const updateDriver = useUpdateDriver();
+  const isEdit = !!driver;
+
+  const { register, handleSubmit, formState: { errors } } = useForm<DriverForm>({
+    defaultValues: driver
+      ? { id: driver.id, name: driver.name, phone: driver.phone, plate: driver.plate, whatsappId: driver.whatsappId || '' }
+      : { id: '', name: '', phone: '', plate: '', whatsappId: '' },
+  });
+
+  const onSubmit = async (data: DriverForm) => {
+    try {
+      if (isEdit) {
+        await updateDriver.mutateAsync({
+          id: driver!.id,
+          body: { name: data.name, phone: data.phone, plate: data.plate, whatsappId: data.whatsappId },
+        });
+        toast.success('Chofer actualizado');
+      } else {
+        await createDriver.mutateAsync({
+          id: data.id.trim().toUpperCase(),
+          name: data.name,
+          phone: data.phone,
+          plate: data.plate,
+          whatsappId: data.whatsappId,
+        });
+        toast.success('Chofer creado');
+      }
+      onClose();
+    } catch (e: any) {
+      toast.error(e.message || 'Error');
+    }
+  };
+
+  const isPending = createDriver.isPending || updateDriver.isPending;
+
+  return (
+    <Modal onClose={onClose} title={isEdit ? 'Editar chofer' : 'Nuevo chofer'}>
+      <form onSubmit={handleSubmit(onSubmit)} className="space-y-3">
+        {!isEdit && (
+          <div>
+            <label className="text-xs font-semibold text-slate-600 block mb-1">ID *</label>
+            <input {...register('id', { required: !isEdit })}
+              placeholder="Ej: D05"
+              className="w-full px-3 py-2 border-2 border-slate-200 rounded-lg focus:border-indigo-500 outline-none text-sm" />
+            {errors.id && <p className="text-xs text-red-500 mt-0.5">Requerido</p>}
+          </div>
+        )}
+        <div>
+          <label className="text-xs font-semibold text-slate-600 block mb-1">Nombre *</label>
+          <input {...register('name', { required: true })}
+            className="w-full px-3 py-2 border-2 border-slate-200 rounded-lg focus:border-indigo-500 outline-none text-sm" />
+        </div>
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <label className="text-xs font-semibold text-slate-600 block mb-1">Teléfono *</label>
+            <input {...register('phone', { required: true })}
+              placeholder="59178001005"
+              className="w-full px-3 py-2 border-2 border-slate-200 rounded-lg focus:border-indigo-500 outline-none text-sm" />
+          </div>
+          <div>
+            <label className="text-xs font-semibold text-slate-600 block mb-1">Placa</label>
+            <input {...register('plate')}
+              className="w-full px-3 py-2 border-2 border-slate-200 rounded-lg focus:border-indigo-500 outline-none text-sm" />
+          </div>
+        </div>
+        <div>
+          <label className="text-xs font-semibold text-slate-600 block mb-1">
+            WhatsApp ID (formato E.164 sin +)
+          </label>
+          <input {...register('whatsappId')}
+            placeholder="59178001005"
+            className="w-full px-3 py-2 border-2 border-slate-200 rounded-lg focus:border-indigo-500 outline-none text-sm" />
+          <p className="text-[10px] text-slate-400 mt-0.5">
+            Solo dígitos. Si está vacío, no se enviará WhatsApp al asignar pedidos.
+          </p>
+        </div>
+        <div className="flex justify-end gap-2 pt-1">
+          <button type="button" onClick={onClose}
+            className="px-4 py-2 text-sm font-semibold text-slate-600 border-2 border-slate-200 rounded-lg hover:bg-slate-50">
+            Cancelar
+          </button>
+          <button type="submit" disabled={isPending}
+            className="px-4 py-2 text-sm font-semibold text-white bg-indigo-500 rounded-lg hover:bg-indigo-600 disabled:opacity-50">
+            {isPending ? 'Guardando...' : isEdit ? 'Guardar' : 'Crear'}
+          </button>
+        </div>
+      </form>
+    </Modal>
+  );
+}
+
+function ChoferesTab() {
+  const { data: drivers = [], isLoading } = useDrivers();
+  const deleteDriver = useDeleteDriver();
+  const [editDriver, setEditDriver] = useState<Driver | null | undefined>(undefined);
+
+  const handleDelete = async (d: Driver) => {
+    if (!confirm(`¿Eliminar al chofer "${d.name}"?`)) return;
+    try {
+      await deleteDriver.mutateAsync(d.id);
+      toast.success('Chofer eliminado');
+    } catch (e: any) {
+      toast.error(e.message || 'Error');
+    }
+  };
+
+  return (
+    <div>
+      <div className="flex justify-end mb-3">
+        <button onClick={() => setEditDriver(null)}
+          className="flex items-center gap-1.5 px-4 py-2 text-xs font-semibold text-white bg-indigo-500 rounded-lg hover:bg-indigo-600">
+          <Plus size={13} /> Chofer
+        </button>
+      </div>
+      <div className="bg-white rounded-xl border-2 border-slate-200 overflow-hidden">
+        <table className="w-full">
+          <thead>
+            <tr className="text-xs font-bold uppercase text-slate-600 border-b border-slate-200 bg-slate-50">
+              <th className="px-4 py-3 text-left">ID</th>
+              <th className="px-3 py-3 text-left">Nombre</th>
+              <th className="px-3 py-3 text-left">Teléfono</th>
+              <th className="px-3 py-3 text-left">Placa</th>
+              <th className="px-3 py-3 text-left">WhatsApp</th>
+              <th className="px-3 py-3 text-center">Acciones</th>
+            </tr>
+          </thead>
+          <tbody>
+            {isLoading && (
+              <tr><td colSpan={6} className="text-center py-6 text-slate-400 text-sm">Cargando...</td></tr>
+            )}
+            {drivers.map((d) => (
+              <tr key={d.id} className="border-b border-slate-100 text-sm hover:bg-slate-50">
+                <td className="px-4 py-3 font-mono text-xs text-slate-500">{d.id}</td>
+                <td className="px-3 py-3 font-semibold text-slate-800">{d.name}</td>
+                <td className="px-3 py-3 text-slate-600">{d.phone}</td>
+                <td className="px-3 py-3 text-slate-500">{d.plate || '—'}</td>
+                <td className="px-3 py-3 text-slate-600 font-mono text-xs">
+                  {d.whatsappId ? d.whatsappId : <span className="text-slate-300">—</span>}
+                </td>
+                <td className="px-3 py-3">
+                  <div className="flex items-center justify-center gap-1">
+                    <button onClick={() => setEditDriver(d)} title="Editar"
+                      className="p-1.5 rounded-lg text-slate-400 hover:text-indigo-600 hover:bg-indigo-50">
+                      <Pencil size={14} />
+                    </button>
+                    <button onClick={() => handleDelete(d)} title="Eliminar"
+                      className="p-1.5 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50">
+                      <Trash2 size={14} />
+                    </button>
+                  </div>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+        {!drivers.length && !isLoading && (
+          <div className="text-center py-8 text-slate-400 text-sm">Sin choferes registrados</div>
+        )}
+      </div>
+      {editDriver !== undefined && (
+        <DriverModal driver={editDriver} onClose={() => setEditDriver(undefined)} />
+      )}
+    </div>
+  );
+}
+
 export default function SettingsView() {
   const [activeTab, setActiveTab] = useState<Tab>('negocio');
 
@@ -421,6 +601,7 @@ export default function SettingsView() {
         {activeTab === 'negocio' && <BusinessTab />}
         {activeTab === 'general' && <GeneralTab />}
         {activeTab === 'empleados' && <EmpleadosTab />}
+        {activeTab === 'choferes' && <ChoferesTab />}
       </div>
     </div>
   );

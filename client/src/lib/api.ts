@@ -131,6 +131,12 @@ export const api = {
   },
   drivers: {
     list: () => request<Driver[]>('/api/drivers'),
+    create: (body: { id: string; name: string; phone: string; plate?: string; whatsappId?: string }) =>
+      request<Driver>('/api/drivers', { method: 'POST', body }),
+    update: (id: string, body: Partial<{ name: string; phone: string; plate: string; whatsappId: string }>) =>
+      request<Driver>(`/api/drivers/${id}`, { method: 'PUT', body }),
+    remove: (id: string) =>
+      request<{ ok: boolean }>(`/api/drivers/${id}`, { method: 'DELETE' }),
   },
   orders: {
     list: () => request<Order[]>('/api/orders'),

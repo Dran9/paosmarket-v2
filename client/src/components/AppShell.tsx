@@ -1,3 +1,4 @@
+import { lazy, Suspense } from 'react';
 import {
   ShoppingCart,
   Receipt,
@@ -16,12 +17,22 @@ import { api } from '@/lib/api';
 import POSView from '@/views/POSView';
 import SalesView from '@/views/SalesView';
 import OrdersView from '@/views/OrdersView';
-import InventoryView from '@/views/InventoryView';
-import DashboardView from '@/views/DashboardView';
-import AccountingView from '@/views/AccountingView';
-import SettingsView from '@/views/SettingsView';
 import BellMenu from '@/components/BellMenu';
 import type { ViewKey } from '@/lib/types';
+
+// Vistas owner-only se cargan bajo demanda (chart.js + xlsx + forms son pesados).
+const InventoryView = lazy(() => import('@/views/InventoryView'));
+const DashboardView = lazy(() => import('@/views/DashboardView'));
+const AccountingView = lazy(() => import('@/views/AccountingView'));
+const SettingsView = lazy(() => import('@/views/SettingsView'));
+
+function ViewFallback() {
+  return (
+    <div className="flex items-center justify-center py-16">
+      <div className="text-slate-400 text-sm">Cargando...</div>
+    </div>
+  );
+}
 
 interface NavEntry {
   key: ViewKey;
@@ -143,7 +154,11 @@ export default function AppShell() {
         <header className="bg-white border-b border-slate-200 px-6 py-2 flex items-center justify-end">
           <BellMenu />
         </header>
-        <main className="flex-1 overflow-y-auto p-6">{VIEWS[activeKey]}</main>
+        <main className="flex-1 overflow-y-auto p-6">
+          <Suspense fallback={<ViewFallback />}>
+            {VIEWS[activeKey]}
+          </Suspense>
+        </main>
       </div>
     </div>
   );
