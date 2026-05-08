@@ -1,0 +1,140 @@
+import {
+  ShoppingCart,
+  Receipt,
+  Truck,
+  BarChart3,
+  Calculator,
+  Package,
+  Settings,
+  Store,
+  LogOut,
+  type LucideIcon,
+} from 'lucide-react';
+import { useStore } from '@/lib/store';
+import { setToken } from '@/lib/api';
+import { api } from '@/lib/api';
+import POSView from '@/views/POSView';
+import SalesView from '@/views/SalesView';
+import Placeholder from '@/views/Placeholder';
+import type { ViewKey } from '@/lib/types';
+
+interface NavEntry {
+  key: ViewKey;
+  icon: LucideIcon;
+  label: string;
+  ownerOnly?: boolean;
+}
+
+const NAV: NavEntry[] = [
+  { key: 'pos', icon: ShoppingCart, label: 'Punto de Venta' },
+  { key: 'sales', icon: Receipt, label: 'Ventas' },
+  { key: 'orders', icon: Truck, label: 'Pedidos' },
+  { key: 'dashboard', icon: BarChart3, label: 'Dashboard', ownerOnly: true },
+  { key: 'accounting', icon: Calculator, label: 'Contabilidad', ownerOnly: true },
+  { key: 'inventory', icon: Package, label: 'Inventario', ownerOnly: true },
+  { key: 'settings', icon: Settings, label: 'Ajustes', ownerOnly: true },
+];
+
+export default function AppShell() {
+  const { view, setView, currentUser, settings, setUser } = useStore();
+  if (!currentUser) return null;
+  const u = currentUser;
+
+  const isOwner = u.role === 'owner';
+  const visibleNav = NAV.filter((n) => (n.ownerOnly ? isOwner : true));
+
+  const handleLogout = async () => {
+    try {
+      await api.auth.logout();
+    } catch {
+      /* ignorar */
+    }
+    setToken(null);
+    setUser(null);
+    setView('pos');
+  };
+
+  const VIEWS: Record<ViewKey, JSX.Element> = {
+    pos: <POSView />,
+    sales: <SalesView />,
+    orders: <Placeholder title="Pedidos" icon={Truck} />,
+    dashboard: <Placeholder title="Dashboard" icon={BarChart3} />,
+    accounting: <Placeholder title="Contabilidad" icon={Calculator} />,
+    inventory: <Placeholder title="Inventario" icon={Package} />,
+    settings: <Placeholder title="Ajustes" icon={Settings} />,
+  };
+
+  const activeKey: ViewKey = visibleNav.some((n) => n.key === view) ? view : 'pos';
+
+  return (
+    <div className="flex h-screen bg-slate-50">
+      <aside className="w-48 min-w-[192px] bg-slate-900 flex flex-col">
+        <div className="p-4 border-b border-white/10">
+          <div className="flex items-center gap-2.5 text-white">
+            <div className="w-8 h-8 rounded-lg bg-indigo-500/20 text-indigo-400 flex items-center justify-center flex-shrink-0">
+              <Store size={15} />
+            </div>
+            <div className="min-w-0">
+              <strong className="block text-sm font-extrabold truncate leading-tight">
+                {settings.businessName}
+              </strong>
+              <span className="text-[10px] text-white/40 truncate block">
+                {settings.businessTagline}
+              </span>
+            </div>
+          </div>
+        </div>
+
+        <nav className="flex-1 p-2 flex flex-col gap-0.5 overflow-y-auto">
+          {visibleNav.map((n) => {
+            const Icon = n.icon;
+            const active = activeKey === n.key;
+            return (
+              <button
+                key={n.key}
+                onClick={() => setView(n.key)}
+                className={`flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-xs font-medium transition-all relative ${
+                  active
+                    ? 'bg-indigo-500/25 text-white'
+                    : 'text-white/60 hover:text-white hover:bg-slate-800'
+                }`}
+              >
+                {active && (
+                  <span className="absolute left-0 top-1/2 -translate-y-1/2 w-0.5 h-5 bg-indigo-400 rounded-r" />
+                )}
+                <Icon size={14} className="flex-shrink-0" />
+                <span className="truncate">{n.label}</span>
+              </button>
+            );
+          })}
+        </nav>
+
+        <div className="p-3 border-t border-white/10">
+          <div className="flex items-center gap-2 text-white">
+            <div
+              className="w-7 h-7 rounded-md flex items-center justify-center text-xs font-bold flex-shrink-0"
+              style={{ background: u.color, color: '#fff' }}
+            >
+              {u.avatar || u.name[0]}
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="text-xs font-semibold truncate leading-tight">{u.name}</div>
+              <div className="text-[9px] text-white/40">
+                {u.role === 'owner' ? 'Propietaria' : 'Vendedora'}
+              </div>
+            </div>
+            <button
+              onClick={handleLogout}
+              title="Cerrar sesión"
+              className="text-white/30 hover:text-white/70 transition-colors flex-shrink-0"
+            >
+              <LogOut size={13} />
+            </button>
+          </div>
+        </div>
+      </aside>
+
+      <main className="flex-1 overflow-y-auto p-6">{VIEWS[activeKey]}</main>
+    </div>
+  );
+}
