@@ -21,6 +21,9 @@ de `PLAN.md`. No reescribas este archivo salvo en la sección final
 | 2.4-lite | GET /api/auth/users + GET /api/settings públicos | `15b2761` |
 | 3 | Frontend base: SPA, login, AppShell, lib, vistas placeholder | `4e078ed` |
 | 4 | SalesView completa con KPIs, filtros y zebra | `4e078ed` |
+| 5 (POS) | POSView funcional, carrito, PaymentModal, ReceiptModal print | `a8064de` |
+| 5.1 backend | orders + drivers + notifications persistentes + Telegram util + migración 002 | `8e2431a` |
+| 5.2 frontend | DeliveryModal en POS, OrdersView editable, BellMenu, "En tienda" | `c527719` |
 
 ---
 
@@ -33,6 +36,54 @@ de `PLAN.md`. No reescribas este archivo salvo en la sección final
   cards del LoginScreen. Solo `active=1`. Nunca expone `password_hash`.
 - `GET /api/settings` → objeto plano con todas las claves de la tabla
   settings. `taxRate` y `lowStockThreshold` casteados a `number`.
+
+### Pedidos (`server/routes/orders.js`) — auth requerido
+- `POST /api/orders` body `{items, client_name, client_phone?, client_zone?,
+  client_addr, notes?, transport_type?, transport_cost?, driver_id?}`. Crea
+  pedido en estado `pendiente`, decrementa stock con FOR UPDATE. **NO crea
+  transacción todavía** — eso pasa al marcar entregado. Total = subtotal +
+  IVA + (transport_cost si transport_type='incluido'); sino solo subtotal+IVA.
+  Genera id `PED-NNNN` desde counter `order` que arranca en 5000.
+- `GET /api/orders` → lista todos, items embebidos, sin filtros (límite 500).
+- `PUT /api/orders/:id` body con cualquier subset de los campos editables
+  (cliente, dirección, transporte, chofer, notas). Recalcula total si tocás
+  transport_type o transport_cost.
+- `PUT /api/orders/:id/status` body `{status, method?, cancel_reason?,
+  transport_settled?}`. Lógica completa:
+  - `entregado`: requiere body.method ('QR' o 'Depósito' — efectivo
+    bloqueado por diseño). Crea transacción ligada a order_id con
+    sale_type='delivery', si no había una. El total de la transacción es
+    `order.total` (que ya incluye el transporte si transport_type='incluido').
+  - `devuelto`: requiere body.transport_settled ('cliente'|'tienda'|'sin_pago').
+    Revierte stock, DELETE de la transacción asociada (cascada borra items),
+    guarda transport_settled y cancel_reason si vino.
+  - `cancelado`: revierte stock, guarda cancel_reason si vino.
+  - `problema`: solo update + crea notificación persistente
+    severity='error' y dispara Telegram (si está configurado).
+  - Estados terminales `devuelto` y `cancelado` no se pueden cambiar.
+  - De `entregado` solo se puede ir a `devuelto`.
+
+### Drivers (`server/routes/drivers.js`)
+- `GET /api/drivers` (auth) → 4 choferes (D01..D04) seedeados con nombres
+  reales. La columna driver_id en orders es opcional.
+
+### Notificaciones (`server/routes/notifications.js`)
+- `GET /api/notifications` (auth) → mezcla notifs persistentes (status='unread')
+  + notifs derivadas calculadas al vuelo para stock bajo (id sintético
+  `low-N`, marcadas con `derived: true`). Las derivadas se recalculan cada
+  request, no se persisten para evitar duplicación.
+- `PUT /api/notifications/:id/read` (auth) — marca leída una persistida.
+  Las derivadas no aceptan read; se "eliminan" al subir el stock.
+- `PUT /api/notifications/read-all` (auth).
+
+### Util Telegram (`server/telegram.js`)
+- `notifyAdmin(text)` lee `TELEGRAM_BOT_TOKEN` y `TELEGRAM_ADMIN_CHAT_ID`
+  del entorno. Si faltan, log warning una sola vez y sigue (no bloquea).
+- Solo se dispara para eventos de alta señal (actualmente: `order_problem`).
+- Para activarlo en prod: crear bot con @BotFather, pegar token en panel
+  Hostinger, hacer /start desde el chat de la admin, leer chat.id de
+  `https://api.telegram.org/bot<TOKEN>/getUpdates`, pegar como
+  TELEGRAM_ADMIN_CHAT_ID.
 
 ### Auth (`server/routes/auth.js`)
 - `POST /api/auth/login` body `{id, password}` → `{token, user}`.
@@ -182,26 +233,54 @@ con `require()` — por eso no hay top-level await.
 
 ```
 pos-paolitas-v2/
-├── client/                      ← solo index.html y main.tsx mínimos de Fase 1
+├── client/
+│   ├── src/
+│   │   ├── components/
+│   │   │   ├── AppShell.tsx        ← sidebar + header con BellMenu
+│   │   │   ├── BellMenu.tsx        ← centro de avisos (badge + dropdown)
+│   │   │   ├── CategoryIcon.tsx
+│   │   │   ├── EditableCell.tsx    ← inline edit reusable (text/number/select)
+│   │   │   ├── Field.tsx
+│   │   │   ├── LoginScreen.tsx
+│   │   │   ├── Modal.tsx
+│   │   │   └── ProductCard.tsx
+│   │   ├── lib/
+│   │   │   ├── api.ts              ← fetch wrapper + cliente tipado
+│   │   │   ├── icons.ts            ← CAT_ICON_MAP normalizado
+│   │   │   ├── queries.ts          ← TanStack hooks (con optimistic en update orders)
+│   │   │   ├── store.ts            ← Zustand: settings, view, cart, currentUser
+│   │   │   ├── types.ts
+│   │   │   └── utils.ts            ← fmt, calcTax, fmtDateTime, useDateRange
+│   │   ├── views/
+│   │   │   ├── OrdersView.tsx      ← tabla editable + mini-modales por status
+│   │   │   ├── Placeholder.tsx     ← para vistas sin implementar
+│   │   │   ├── POSView.tsx         ← caja + DeliveryModal + Payment + Receipt
+│   │   │   └── SalesView.tsx
+│   │   ├── App.tsx
+│   │   ├── main.tsx
+│   │   └── index.css               ← Tailwind + estilos print del recibo
+│   ├── index.html, vite.config.ts, tsconfig.json, tailwind.config.js
 ├── server/
 │   ├── routes/
 │   │   ├── auth.js
+│   │   ├── drivers.js
+│   │   ├── notifications.js
+│   │   ├── orders.js               ← crea/edita/cambia status con lógica completa
 │   │   ├── products.js
+│   │   ├── settings.js
 │   │   └── transactions.js
 │   ├── migrations/
-│   │   └── 001_init.sql         ← schema completo (10 tablas + _migrations)
-│   ├── auth.js                  ← setupAuth + decorators + userToDTO
-│   ├── db.js                    ← pool, query, nextId, round2, initDB
-│   └── seed.js                  ← admin, esperancita, 6 productos, 2 drivers, 14 settings
-├── scripts/
-│   └── test-db.js
-├── server.js                    ← entry point, registra plugins y rutas
-├── PLAN.md                      ← fuente de verdad
-├── HANDOFF.md                   ← este archivo
-├── .env                         ← gitignored, credenciales DB local
-├── .env.example
-├── .gitignore
-└── package.json
+│   │   ├── 001_init.sql            ← schema base (10 tablas)
+│   │   └── 002_orders_notifications.sql  ← status nuevos, columnas y notifications
+│   ├── auth.js
+│   ├── db.js
+│   ├── notifications.js            ← createNotification + lowStockNotifications
+│   ├── seed.js                     ← 4 drivers reales con ON DUPLICATE KEY UPDATE
+│   └── telegram.js                 ← notifyAdmin opt-in via env
+├── scripts/test-db.js
+├── server.js
+├── PLAN.md, HANDOFF.md
+├── .env (gitignored), .env.example, .gitignore, package.json
 ```
 
 ---
@@ -226,6 +305,38 @@ pos-paolitas-v2/
   (lowercase + strip de diacríticos) para que tanto "Lácteos" como
   "Lacteos" mapeen al mismo icono. Si la BD agrega categorías nuevas,
   basta con agregarla al `RAW_MAP` en su forma sin tilde.
-- **Pendiente Fase 5:** las vistas reales (POS, Inventory, Orders,
-  Dashboard, Accounting, Settings). El `useCreateTransaction` en
-  `queries.ts` ya está listo para que POSView lo consuma.
+- **2026-05-08 — Fase 5 (POS) cerrada.** POSView vendible con búsqueda,
+  grid, carrito, PaymentModal (Efectivo/QR/Tarjeta/Mixto) y ReceiptModal
+  imprimible. CSS `@media print` en index.css usa `.receipt-print` para
+  aislar el ticket al imprimir.
+- **2026-05-08 — Fase 5.1+5.2 (delivery + pedidos + avisos) cerradas.**
+  POS toggle delivery → DeliveryModal crea pedido; OrdersView con
+  edición inline de cliente/transporte/chofer/notas y dropdowns de
+  status; mini-modales para entregar (QR/Depósito), devolver (transport
+  settled) y cancelar (razón). BellMenu en header lee notifs
+  persistentes + stock bajo derivado.
+- **Drivers en stand-by**: el dropdown muestra 4 choferes reales (Jonhy,
+  Gerson, Rolando, Felix) pero la operativa real está apagada. Cuando
+  Daniel conecte WhatsApp Business + Coexistence, hay que: (1) agregar
+  `whatsapp_id` a la tabla `drivers`, (2) en POST /api/orders cuando
+  `driver_id` viene set, llamar a un util `notifyDriver(driver, order)`
+  similar a notifyAdmin pero usando WhatsApp Business API. El frontend
+  ya está listo: el aviso al chofer es transparente desde su punto.
+- **Telegram** funciona localmente con env vars. En prod aún no se
+  configuró TELEGRAM_BOT_TOKEN ni TELEGRAM_ADMIN_CHAT_ID — la notif de
+  problema queda solo en la campana hasta que se setee. Pasos para
+  configurar arriba en el bloque "Util Telegram".
+- **Pendiente — Fase 6 backend** (`Fase 2.5` original):
+    - `PUT /api/settings` para editar businessName y compañía
+    - `/api/users` CRUD (owner only)
+    - `/api/expenses` CRUD para AccountingView
+    - `/api/dashboard` resumen para DashboardView
+- **Pendiente — Fase 6 frontend**: SettingsView, InventoryView (CRUD de
+  productos + import Excel), DashboardView (charts), AccountingView
+  (gastos + IVA + ganancia neta).
+- **Decisión pendiente — costo de transporte cuando devuelto y "tienda
+  paga"**: hoy se guarda solo el flag `transport_settled='tienda'` en la
+  tabla orders. Cuando se implemente `/api/expenses`, hay que crear
+  automáticamente un expense category='transporte_devolución' con monto
+  igual a `order.transport_cost` cada vez que un pedido pase a `devuelto`
+  con settled='tienda'. Mientras tanto, queda como flag para no perder data.
