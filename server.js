@@ -24,6 +24,7 @@ app.get('/api/health', async () => {
     dbHost: process.env.DB_HOST || null,
     dbUser: process.env.DB_USER || null,
     dbName: process.env.DB_NAME || null,
+    dbPasswordLen: (process.env.DB_PASSWORD || '').length,
   };
 });
 
