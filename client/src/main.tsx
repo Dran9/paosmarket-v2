@@ -5,6 +5,15 @@ import { Toaster } from 'react-hot-toast';
 import App from './App';
 import './index.css';
 
+// Registrar Service Worker para cache offline de assets estáticos
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/sw.js').catch(() => {
+      // Fallo silencioso — la app funciona igual sin SW
+    });
+  });
+}
+
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
